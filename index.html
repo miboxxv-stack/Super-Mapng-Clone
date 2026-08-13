@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>Super-MapNG</title>
+
+    <link rel="stylesheet" href="./style.css">
+</head>
+
+<body>
+    <header class="topbar">
+        <div>
+            <h1>Super-MapNG</h1>
+            <span>Real-world BeamNG terrain generator</span>
+        </div>
+
+        <div class="controls">
+            <label>
+                Width
+                <select id="mapWidth">
+                    <option value="512">512</option>
+                    <option value="1082" selected>1082</option>
+                    <option value="2048">2048</option>
+                </select>
+            </label>
+
+            <label>
+                Height
+                <select id="mapHeight">
+                    <option value="512">512</option>
+                    <option value="1082" selected>1082</option>
+                    <option value="2048">2048</option>
+                </select>
+            </label>
+
+            <button id="generateButton">Generate</button>
+        </div>
+    </header>
+
+    <main>
+        <section id="viewport"></section>
+
+        <aside class="sidebar">
+            <h2>World</h2>
+
+            <label>
+                Latitude
+                <input id="latitude" type="number" step="0.000001" value="50.6745">
+            </label>
+
+            <label>
+                Longitude
+                <input id="longitude" type="number" step="0.000001" value="-120.3273">
+            </label>
+
+            <hr>
+
+            <h2>Generation</h2>
+
+            <label class="check">
+                <input id="buildings" type="checkbox" checked>
+                Buildings
+            </label>
+
+            <label class="check">
+                <input id="roads" type="checkbox" checked>
+                Roads
+            </label>
+
+            <label class="check">
+                <input id="vegetation" type="checkbox" checked>
+                Vegetation
+            </label>
+
+            <label class="check">
+                <input id="curbs" type="checkbox" checked>
+                Curbs
+            </label>
+
+            <button id="exportButton">Export JSON</button>
+        </aside>
+    </main>
+
+    <script type="module" src="./js/main.js"></script>
+</body>
+</html>
