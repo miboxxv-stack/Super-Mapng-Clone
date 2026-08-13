@@ -13,461 +13,61 @@
         content="Super-MapNG — real-world terrain and BeamNG map generator."
     >
 
+    <meta
+        name="theme-color"
+        content="#ff6600"
+    >
+
     <title>Super-MapNG</title>
 
-    <style>
-        html,
-        body {
-            margin: 0;
-            width: 100%;
-            height: 100%;
+    <!-- Main stylesheet -->
+    <link
+        rel="stylesheet"
+        href="./style.css"
+    >
+
+    <!-- Three.js import map -->
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://cdn.jsdelivr.net/npm/three@0.179.1/build/three.module.js",
+            "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.179.1/examples/jsm/"
         }
-
-        body {
-            overflow: hidden;
-        }
-
-        #app {
-            width: 100%;
-            height: 100%;
-        }
-
-        #map {
-            position: relative;
-            width: 100%;
-            height: 100%;
-            overflow: hidden;
-            background:
-                linear-gradient(
-                    180deg,
-                    #9ec7e5 0%,
-                    #bfd8e8 52%,
-                    #809a6e 100%
-                );
-        }
-
-        #three-container {
-            position: absolute;
-            inset: 0;
-            z-index: 1;
-        }
-
-        #three-container canvas {
-            display: block;
-            width: 100%;
-            height: 100%;
-        }
-
-        .map-grid {
-            position: absolute;
-            inset: 0;
-            z-index: 2;
-            pointer-events: none;
-            opacity: 0.12;
-            background-image:
-                linear-gradient(
-                    rgba(255,255,255,0.35) 1px,
-                    transparent 1px
-                ),
-                linear-gradient(
-                    90deg,
-                    rgba(255,255,255,0.35) 1px,
-                    transparent 1px
-                );
-            background-size: 32px 32px;
-        }
-
-        .map-ui-top {
-            position: absolute;
-            top: 12px;
-            left: 12px;
-            right: 12px;
-            z-index: 20;
-            pointer-events: none;
-        }
-
-        .map-ui-top > * {
-            pointer-events: auto;
-        }
-
-        .map-status {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            padding: 8px 12px;
-            border-radius: 8px;
-            background: rgba(17, 24, 39, 0.84);
-            color: white;
-            font-size: 11px;
-            backdrop-filter: blur(10px);
-            box-shadow: 0 8px 30px rgba(0,0,0,0.2);
-        }
-
-        .status-dot {
-            width: 7px;
-            height: 7px;
-            border-radius: 999px;
-            background: #22c55e;
-            box-shadow: 0 0 10px rgba(34,197,94,0.7);
-        }
-
-        .map-controls {
-            position: absolute;
-            right: 12px;
-            top: 12px;
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
-        }
-
-        .map-control-button {
-            width: 34px;
-            height: 34px;
-            border: 1px solid rgba(255,255,255,0.25);
-            border-radius: 8px;
-            background: rgba(17, 24, 39, 0.82);
-            color: white;
-            cursor: pointer;
-            backdrop-filter: blur(8px);
-            display: grid;
-            place-items: center;
-            font-size: 16px;
-        }
-
-        .map-control-button:hover {
-            background: rgba(255,102,0,0.92);
-        }
-
-        .map-coordinates {
-            position: absolute;
-            left: 12px;
-            bottom: 12px;
-            z-index: 20;
-            padding: 7px 10px;
-            border-radius: 7px;
-            background: rgba(17,24,39,0.82);
-            color: rgba(255,255,255,0.9);
-            font-size: 10px;
-            font-family: monospace;
-            backdrop-filter: blur(8px);
-        }
-
-        .processing-overlay {
-            position: absolute;
-            inset: 0;
-            z-index: 100;
-            display: none;
-            align-items: center;
-            justify-content: center;
-            background: rgba(255,255,255,0.78);
-            backdrop-filter: blur(7px);
-        }
-
-        .processing-overlay.active {
-            display: flex;
-        }
-
-        .dark .processing-overlay {
-            background: rgba(3,7,18,0.82);
-        }
-
-        .processing-card {
-            width: min(380px, calc(100vw - 40px));
-            padding: 28px;
-            border-radius: 16px;
-            background: white;
-            border: 1px solid #e5e7eb;
-            box-shadow: 0 25px 60px rgba(0,0,0,0.22);
-            text-align: center;
-        }
-
-        .dark .processing-card {
-            background: #111827;
-            border-color: #374151;
-        }
-
-        .spinner {
-            width: 46px;
-            height: 46px;
-            margin: 0 auto 16px;
-            border: 4px solid rgba(255,102,0,0.18);
-            border-top-color: #ff6600;
-            border-radius: 999px;
-            animation: spin 0.8s linear infinite;
-        }
-
-        @keyframes spin {
-            to {
-                transform: rotate(360deg);
-            }
-        }
-
-        .processing-title {
-            margin: 0 0 8px;
-            font-size: 20px;
-            font-weight: 700;
-        }
-
-        .processing-text {
-            margin: 0;
-            color: #6b7280;
-            font-size: 13px;
-        }
-
-        .processing-progress {
-            margin-top: 18px;
-            height: 6px;
-            overflow: hidden;
-            border-radius: 999px;
-            background: #e5e7eb;
-        }
-
-        .dark .processing-progress {
-            background: #374151;
-        }
-
-        .processing-progress-bar {
-            width: 20%;
-            height: 100%;
-            background: #ff6600;
-            animation: progress 2s ease-in-out infinite;
-        }
-
-        @keyframes progress {
-            0% {
-                transform: translateX(-100%);
-            }
-
-            50% {
-                transform: translateX(250%);
-            }
-
-            100% {
-                transform: translateX(500%);
-            }
-        }
-
-        .processing-cancel {
-            margin-top: 18px;
-            padding: 8px 18px;
-            border-radius: 8px;
-            border: 1px solid #d1d5db;
-            background: #f3f4f6;
-            color: #374151;
-            cursor: pointer;
-        }
-
-        .dark .processing-cancel {
-            background: #1f2937;
-            border-color: #4b5563;
-            color: #d1d5db;
-        }
-
-        .sidebar-scroll::-webkit-scrollbar {
-            width: 7px;
-        }
-
-        .sidebar-scroll::-webkit-scrollbar-track {
-            background: transparent;
-        }
-
-        .sidebar-scroll::-webkit-scrollbar-thumb {
-            background: #cbd5e1;
-            border-radius: 999px;
-        }
-
-        .dark .sidebar-scroll::-webkit-scrollbar-thumb {
-            background: #4b5563;
-        }
-
-        .feature-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 7px;
-        }
-
-        .feature-card {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 6px;
-            padding: 8px;
-            border: 1px solid #e5e7eb;
-            background: #f9fafb;
-            border-radius: 7px;
-        }
-
-        .dark .feature-card {
-            border-color: #374151;
-            background: #374151;
-        }
-
-        .feature-card span {
-            font-size: 10px;
-            color: #374151;
-        }
-
-        .dark .feature-card span {
-            color: #e5e7eb;
-        }
-
-        .feature-card input {
-            width: 14px;
-            height: 14px;
-            accent-color: #ff6600;
-        }
-
-        .phase-label {
-            display: inline-flex;
-            align-items: center;
-            padding: 2px 6px;
-            border-radius: 999px;
-            margin-left: auto;
-            font-size: 8px;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.08em;
-        }
-
-        .phase-2 {
-            color: #c2410c;
-            background: #ffedd5;
-        }
-
-        .phase-3 {
-            color: #1d4ed8;
-            background: #dbeafe;
-        }
-
-        .dark .phase-2 {
-            color: #fdba74;
-            background: rgba(124,45,18,0.35);
-        }
-
-        .dark .phase-3 {
-            color: #93c5fd;
-            background: rgba(30,64,175,0.35);
-        }
-
-        .section-heading {
-            display: flex;
-            align-items: center;
-            gap: 7px;
-            margin-bottom: 12px;
-        }
-
-        .section-heading-icon {
-            color: #ff6600;
-        }
-
-        .section-heading-title {
-            font-size: 14px;
-            font-weight: 700;
-            color: #374151;
-        }
-
-        .dark .section-heading-title {
-            color: #f3f4f6;
-        }
-
-        .section-divider {
-            margin: 4px 0 16px;
-            border-top: 1px solid #e5e7eb;
-        }
-
-        .dark .section-divider {
-            border-color: #374151;
-        }
-
-        .small-help {
-            margin-top: 5px;
-            font-size: 10px;
-            line-height: 1.4;
-            color: #6b7280;
-        }
-
-        .dark .small-help {
-            color: #9ca3af;
-        }
-
-        @media (max-width: 1050px) {
-            .layout {
-                grid-template-columns: 1fr 310px;
-            }
-        }
-
-        @media (max-width: 820px) {
-            .layout {
-                grid-template-columns: 1fr;
-            }
-
-            .sidebar {
-                position: absolute;
-                right: 0;
-                top: 58px;
-                bottom: 0;
-                width: min(360px, 92vw);
-                z-index: 40;
-                box-shadow: -15px 0 40px rgba(0,0,0,0.15);
-            }
-        }
-    </style>
+    }
+    </script>
 </head>
 
 <body>
 
-<div
-    id="app"
-    class="h-full w-full flex flex-col bg-gray-50 dark:bg-gray-900"
->
+<div id="app">
 
-    <!-- TOP BAR -->
-    <header
-        class="h-14 shrink-0 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between px-4 z-[200]"
-    >
+    <!-- =========================================================
+         TOP BAR
+    ========================================================== -->
 
-        <div class="flex items-center gap-3">
+    <header class="topbar">
 
-            <div
-                class="w-8 h-8 rounded-lg bg-[#FF6600] text-white flex items-center justify-center font-black shadow-sm"
-            >
-                S
-            </div>
-
-            <div>
-                <h1
-                    class="text-sm font-bold text-gray-900 dark:text-white"
-                >
-                    Super-MapNG
-                </h1>
-
-                <p
-                    class="text-[10px] text-gray-500 dark:text-gray-400"
-                >
-                    Real-world terrain & BeamNG map generator
-                </p>
-            </div>
-
+        <div class="brand">
+            <strong>Super-MapNG</strong>
+            <span>Real-World Terrain &amp; BeamNG Map Generator</span>
         </div>
 
-
-        <div class="flex items-center gap-2">
+        <div class="topbar-actions">
 
             <span
-                class="hidden sm:inline-flex items-center gap-2 px-2.5 py-1.5 rounded-full bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 text-[10px] font-medium text-emerald-700 dark:text-emerald-300"
+                id="app-status"
+                class="map-status"
             >
-                <span
-                    class="w-1.5 h-1.5 rounded-full bg-emerald-500"
-                ></span>
-
-                3D Engine Ready
+                <span class="status-dot"></span>
+                Ready
             </span>
 
             <button
-                id="themeButton"
+                id="theme-toggle"
                 type="button"
-                class="w-8 h-8 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300"
+                class="map-control-button"
                 title="Toggle dark mode"
+                aria-label="Toggle dark mode"
             >
                 ☾
             </button>
@@ -477,44 +77,54 @@
     </header>
 
 
-    <!-- MAIN -->
-    <div class="layout flex-1 min-h-0">
+    <!-- =========================================================
+         MAIN LAYOUT
+    ========================================================== -->
 
-        <!-- THREE.JS MAP -->
+    <div class="layout">
+
+        <!-- =====================================================
+             THREE.JS MAP
+        ====================================================== -->
+
         <main
             id="map"
-            class="relative min-w-0"
+            aria-label="3D terrain map"
         >
 
-            <div id="three-container"></div>
+            <div
+                id="three-container"
+                aria-hidden="true"
+            ></div>
 
             <div class="map-grid"></div>
 
 
             <!-- MAP STATUS -->
+
             <div class="map-ui-top">
 
-                <div class="map-status">
-
+                <div
+                    id="map-engine-status"
+                    class="map-status"
+                >
                     <span class="status-dot"></span>
-
-                    <span id="map-engine-status">
-                        Three.js scene loaded
-                    </span>
-
+                    Loading Three.js...
                 </div>
 
             </div>
 
 
-            <!-- MAP BUTTONS -->
+            <!-- CAMERA CONTROLS -->
+
             <div class="map-controls">
 
                 <button
                     id="cameraHome"
                     type="button"
                     class="map-control-button"
-                    title="Reset camera"
+                    title="Home camera"
+                    aria-label="Home camera"
                 >
                     ⌂
                 </button>
@@ -524,6 +134,7 @@
                     type="button"
                     class="map-control-button"
                     title="Top view"
+                    aria-label="Top view"
                 >
                     ↑
                 </button>
@@ -533,6 +144,7 @@
                     type="button"
                     class="map-control-button"
                     title="Orbit view"
+                    aria-label="Orbit view"
                 >
                     ◇
                 </button>
@@ -541,46 +153,55 @@
 
 
             <!-- COORDINATES -->
+
             <div
                 id="map-coordinates"
                 class="map-coordinates"
             >
-                Lat: 50.674500 · Lon: -120.327300
+                Lat: 50.6745 · Lon: -120.3273
             </div>
 
 
-            <!-- PROCESSING -->
+            <!-- =================================================
+                 PROCESSING OVERLAY
+            ================================================== -->
+
             <div
                 id="processing-overlay"
                 class="processing-overlay"
+                aria-hidden="true"
             >
 
                 <div class="processing-card">
 
-                    <div class="spinner"></div>
-
-                    <h3
-                        id="processing-title"
-                        class="processing-title text-gray-900 dark:text-white"
+                    <div
+                        class="processing-spinner"
+                        aria-hidden="true"
                     >
+                        ⟳
+                    </div>
+
+                    <h2>
                         Processing Terrain
-                    </h3>
+                    </h2>
 
                     <p
                         id="processing-message"
-                        class="processing-text dark:text-gray-400"
                     >
                         Fetching OpenStreetMap data...
                     </p>
 
-                    <div class="processing-progress">
-                        <div class="processing-progress-bar"></div>
+                    <div
+                        id="processing-details"
+                        class="processing-details"
+                    >
+                        Preparing terrain generation...
                     </div>
 
                     <button
                         id="cancel-processing"
                         type="button"
-                        class="processing-cancel"
+                        class="secondary full"
                     >
                         Cancel
                     </button>
@@ -592,42 +213,39 @@
         </main>
 
 
-        <!-- RIGHT SIDEBAR -->
-        <aside
-            class="flex-1 overflow-y-auto custom-scrollbar bg-gray-50/50 dark:bg-gray-800/50 p-5 sidebar"
-        >
+        <!-- =====================================================
+             SIDEBAR
+        ====================================================== -->
 
-            <div class="space-y-6 sidebar-scroll">
+        <aside class="sidebar">
 
+            <div class="sidebar-scroll">
 
-                <!-- ELEVATION UPLOAD -->
-                <div class="space-y-2">
+                <!-- =================================================
+                     TERRAIN INPUT
+                ================================================== -->
+
+                <section class="section">
+
+                    <h3>
+                        Terrain Input
+                    </h3>
 
                     <label
-                        class="flex items-center gap-2 w-full px-3 py-2 rounded-lg border border-dashed border-gray-300 dark:border-gray-600 text-sm text-gray-500 dark:text-gray-400 hover:border-[#FF6600] hover:text-[#FF6600] dark:hover:border-[#FF6600] dark:hover:text-[#FF6600] cursor-pointer transition-colors"
+                        class="upload"
+                        for="elevation-upload"
                     >
 
-                        <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            width="14"
-                            height="14"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            stroke-width="2"
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                        >
-                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                            <polyline points="17 8 12 3 7 8"></polyline>
-                            <line x1="12" x2="12" y1="3" y2="15"></line>
-                        </svg>
+                        <span>
+                            ↑
+                        </span>
 
                         <span>
                             Custom Elevation Upload
-                            <span class="block text-[10px] opacity-75">
-                                .tif, .asc, .gml, .xml, .zip, .laz, .las
-                            </span>
+                            <small>
+                                .tif, .tiff, .asc, .gml, .xml,
+                                .zip, .laz, .las
+                            </small>
                         </span>
 
                         <input
@@ -635,36 +253,32 @@
                             type="file"
                             multiple
                             accept=".tif,.tiff,.asc,.gml,.xml,.zip,.laz,.las"
-                            class="sr-only"
                         >
 
                     </label>
 
-                </div>
+                </section>
 
 
-                <!-- ACTION BUTTONS -->
-                <div class="grid grid-cols-2 gap-3">
+                <!-- =================================================
+                     ACTIONS
+                ================================================== -->
+
+                <div class="button-grid">
 
                     <button
                         id="preview-3d"
                         type="button"
-                        class="py-3 font-bold transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#FF6600] disabled:opacity-50 disabled:cursor-not-allowed flex flex-col items-center justify-center text-center gap-1 w-full rounded-md bg-[#FF6600] text-white hover:bg-[#E65C00] shadow-orange-900/10 px-3 py-1.5 text-sm"
+                        class="big-button primary"
                     >
 
-                        <div class="flex items-center gap-2">
-
-                            <span>⛰</span>
-
-                            <span>Preview 3D</span>
-
-                        </div>
-
-                        <span
-                            class="text-[10px] font-normal opacity-90"
-                        >
-                            View before download
+                        <span>
+                            ▲ Preview 3D
                         </span>
+
+                        <small>
+                            View before download
+                        </small>
 
                     </button>
 
@@ -672,57 +286,37 @@
                     <button
                         id="generate-data"
                         type="button"
-                        class="py-3 font-bold transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#FF6600] disabled:opacity-50 disabled:cursor-not-allowed flex flex-col items-center justify-center text-center gap-1 w-full rounded-md bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 shadow-sm px-3 py-1.5 text-sm"
+                        class="big-button secondary"
                     >
 
-                        <div class="flex items-center gap-2">
-
-                            <span>↓</span>
-
-                            <span>Generate Data</span>
-
-                        </div>
-
-                        <span
-                            class="text-[10px] font-normal text-gray-500 dark:text-gray-400"
-                        >
-                            Skip 3D view, get files
+                        <span>
+                            ↓ Generate Data
                         </span>
+
+                        <small>
+                            Skip 3D view, get files
+                        </small>
 
                     </button>
 
                 </div>
 
 
-                <!-- OUTPUT -->
-                <div class="space-y-4">
+                <!-- =================================================
+                     OUTPUT SETTINGS
+                ================================================== -->
 
-                    <div class="section-heading">
+                <section class="section">
 
-                        <span class="section-heading-icon">◈</span>
-
-                        <span class="section-heading-title">
-                            Output Settings
-                        </span>
-
-                    </div>
+                    <h3>
+                        Output Settings
+                    </h3>
 
 
-                    <!-- RESOLUTION -->
+                    <label>
+                        Resolution (Output Size)
 
-                    <div class="space-y-1">
-
-                        <label
-                            class="text-xs text-gray-500 dark:text-gray-400"
-                            for="resolution"
-                        >
-                            Resolution (Output Size)
-                        </label>
-
-                        <select
-                            id="resolution"
-                            class="w-full rounded-md px-2 py-2 text-sm bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white cursor-pointer transition-colors focus:outline-none focus:ring-1 focus:ring-[#FF6600] focus:border-[#FF6600]"
-                        >
+                        <select id="resolution">
 
                             <option value="512">
                                 512 × 512 px
@@ -730,10 +324,6 @@
 
                             <option value="1024">
                                 1024 × 1024 px
-                            </option>
-
-                            <option value="1082">
-                                1082 × 1082 px
                             </option>
 
                             <option value="2048">
@@ -753,677 +343,28 @@
                             </option>
 
                         </select>
+                    </label>
 
-                    </div>
 
-
-                    <!-- PROCESSING RESOLUTION -->
-
-                    <div class="space-y-1">
-
-                        <label
-                            class="text-xs text-gray-500 dark:text-gray-400"
-                            for="meters-per-pixel"
-                        >
-                            Processing resolution
-                            (meters per pixel)
-                        </label>
+                    <label>
+                        Processing resolution
+                        (meters per pixel)
 
                         <input
                             id="meters-per-pixel"
                             type="number"
                             inputmode="decimal"
-                            min="0.00000001"
-                            step="0.00000001"
+                            min="0.0000000001"
+                            step="any"
                             value="1"
-                            class="w-full border rounded px-2 py-2 text-sm outline-none bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#FF6600] focus:border-[#FF6600]"
+                            placeholder="1.00"
                         >
 
-                        <p
-                            class="text-[10px] text-gray-500 dark:text-gray-400"
-                        >
-                            Lower m/px means finer detail over a smaller area.
-                        </p>
-
-                    </div>
-
-
-                    <!-- OSM -->
-
-                    <div
-                        class="p-2 rounded bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600"
-                    >
-
-                        <label
-                            class="flex items-center justify-between gap-3 select-none cursor-pointer"
-                        >
-
-                            <div
-                                class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300"
-                            >
-                                🗺️ Include OSM Features
-
-                            </div>
-
-                            <input
-                                id="include-osm"
-                                type="checkbox"
-                                class="accent-[#FF6600] w-4 h-4 cursor-pointer"
-                                checked
-                            >
-
-                        </label>
-
-                    </div>
-
-
-                    <!-- ROAD SETTINGS -->
-
-                    <div
-                        class="p-2 rounded bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600"
-                    >
-
-                        <label
-                            class="flex items-center justify-between gap-3 select-none cursor-pointer"
-                        >
-
-                            <div
-                                class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300"
-                            >
-                                🛣️ Smooth Roads
-                            </div>
-
-                            <input
-                                id="smooth-roads"
-                                type="checkbox"
-                                class="accent-[#FF6600] w-4 h-4 cursor-pointer"
-                            >
-
-                        </label>
-
-                        <p
-                            class="mt-1 ml-6 text-[10px] text-gray-500 dark:text-gray-400"
-                        >
-                            Smooths road elevation changes. Bridges are preserved.
-                        </p>
-
-                    </div>
-
-
-                    <div
-                        class="p-2 rounded bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600"
-                    >
-
-                        <label
-                            class="flex items-center justify-between gap-3 select-none cursor-pointer"
-                        >
-
-                            <div
-                                class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300"
-                            >
-                                🛣️ Level Roads (Pathing)
-                            </div>
-
-                            <input
-                                id="level-roads"
-                                type="checkbox"
-                                class="accent-[#FF6600] w-4 h-4 cursor-pointer"
-                                checked
-                            >
-
-                        </label>
-
-                        <p
-                            class="mt-1 ml-6 text-[10px] text-gray-500 dark:text-gray-400"
-                        >
-                            Forces roads to have zero transverse tilt.
-                        </p>
-
-                    </div>
-
-                </div>
-
-
-                <!-- PHASE 2 -->
-                <div class="space-y-3">
-
-                    <div class="flex items-center gap-2">
-
-                        <span
-                            class="text-sm font-bold text-gray-700 dark:text-gray-300"
-                        >
-                            Phase 2 · Real-World OSM
-                        </span>
-
-                        <span class="phase-label phase-2">
-                            OSM
-                        </span>
-
-                    </div>
-
-                    <div class="section-divider"></div>
-
-
-                    <div class="feature-grid">
-
-
-                        <label class="feature-card">
-
-                            <span>🛣 Roads</span>
-
-                            <input
-                                id="include-roads"
-                                type="checkbox"
-                                checked
-                            >
-
-                        </label>
-
-
-                        <label class="feature-card">
-
-                            <span>🏠 Buildings</span>
-
-                            <input
-                                id="include-buildings"
-                                type="checkbox"
-                                checked
-                            >
-
-                        </label>
-
-
-                        <label class="feature-card">
-
-                            <span>🌉 Bridges</span>
-
-                            <input
-                                id="include-bridges"
-                                type="checkbox"
-                                checked
-                            >
-
-                        </label>
-
-
-                        <label class="feature-card">
-
-                            <span>💧 Water</span>
-
-                            <input
-                                id="include-water"
-                                type="checkbox"
-                                checked
-                            >
-
-                        </label>
-
-
-                        <label class="feature-card">
-
-                            <span>🅿️ Parking</span>
-
-                            <input
-                                id="include-parking"
-                                type="checkbox"
-                                checked
-                            >
-
-                        </label>
-
-
-                        <label class="feature-card">
-
-                            <span>🚧 Fences</span>
-
-                            <input
-                                id="include-fences"
-                                type="checkbox"
-                                checked
-                            >
-
-                        </label>
-
-
-                        <label class="feature-card">
-
-                            <span>⛔ Barriers</span>
-
-                            <input
-                                id="include-barriers"
-                                type="checkbox"
-                                checked
-                            >
-
-                        </label>
-
-
-                        <label class="feature-card">
-
-                            <span>🚶 Sidewalks</span>
-
-                            <input
-                                id="include-sidewalks"
-                                type="checkbox"
-                                checked
-                            >
-
-                        </label>
-
-
-                        <label class="feature-card">
-
-                            <span>▰ Curbs</span>
-
-                            <input
-                                id="include-curbs"
-                                type="checkbox"
-                                checked
-                            >
-
-                        </label>
-
-
-                        <label class="feature-card">
-
-                            <span>💡 Streetlights</span>
-
-                            <input
-                                id="include-streetlights"
-                                type="checkbox"
-                                checked
-                            >
-
-                        </label>
-
-
-                        <label class="feature-card">
-
-                            <span>⚡ Utility Poles</span>
-
-                            <input
-                                id="include-utility-poles"
-                                type="checkbox"
-                                checked
-                            >
-
-                        </label>
-
-
-                        <label class="feature-card">
-
-                            <span>🌲 Trees</span>
-
-                            <input
-                                id="include-trees"
-                                type="checkbox"
-                                checked
-                            >
-
-                        </label>
-
-
-                        <label class="feature-card">
-
-                            <span>🌿 Bushes</span>
-
-                            <input
-                                id="include-bushes"
-                                type="checkbox"
-                                checked
-                            >
-
-                        </label>
-
-                    </div>
-
-
-                    <div
-                        class="small-help"
-                    >
-                        OSM features are converted into optimized scene geometry.
-                        Important infrastructure receives higher priority than decorative objects.
-                    </div>
-
-                </div>
-
-
-                <!-- ELEVATION PHASE 3 -->
-                <div class="space-y-3">
-
-                    <div class="flex items-center gap-2">
-
-                        <span
-                            class="text-sm font-bold text-gray-700 dark:text-gray-300"
-                        >
-                            Phase 3 · Terrain
-                        </span>
-
-                        <span class="phase-label phase-3">
-                            DEM
-                        </span>
-
-                    </div>
-
-                    <div class="section-divider"></div>
-
-
-                    <label
-                        class="text-xs text-gray-500 dark:text-gray-400"
-                        for="elevation-source"
-                    >
-                        ⛰ Elevation Data Source
-                    </label>
-
-                    <select
-                        id="elevation-source"
-                        class="w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded px-2 py-1.5 text-xs text-gray-900 dark:text-white focus:ring-1 focus:ring-[#FF6600] outline-none cursor-pointer"
-                    >
-
-                        <option value="30m-global">
-                            Standard Global DEM
-                        </option>
-
-                        <option value="none">
-                            None (Flat)
-                        </option>
-
-                        <option value="usgs1m">
-                            USGS 1m DEM
-                        </option>
-
-                        <option value="custom">
-                            Custom Upload
-                        </option>
-
-                    </select>
-
-
-                    <p
-                        class="text-[10px] text-gray-500 dark:text-gray-400"
-                    >
-                        Terrain elevation should be processed before
-                        buildings, roads, vegetation, and water are positioned.
-                    </p>
-
-
-                    <div
-                        class="grid grid-cols-3 gap-1 p-2 rounded bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-[10px]"
-                    >
-
-                        <div
-                            class="text-center border-r border-gray-200 dark:border-gray-600"
-                        >
-
-                            <div class="text-gray-400">
-                                Min
-                            </div>
-
-                            <div
-                                id="elevation-min"
-                                class="font-medium text-gray-700 dark:text-gray-300"
-                            >
-                                —
-                            </div>
-
-                        </div>
-
-
-                        <div
-                            class="text-center border-r border-gray-200 dark:border-gray-600"
-                        >
-
-                            <div class="text-gray-400">
-                                Max
-                            </div>
-
-                            <div
-                                id="elevation-max"
-                                class="font-medium text-gray-700 dark:text-gray-300"
-                            >
-                                —
-                            </div>
-
-                        </div>
-
-
-                        <div class="text-center">
-
-                            <div class="text-gray-400">
-                                Diff
-                            </div>
-
-                            <div
-                                id="elevation-diff"
-                                class="font-bold text-[#FF6600]"
-                            >
-                                —
-                            </div>
-
-                        </div>
-
-                    </div>
-
-                </div>
-
-
-                <!-- TERRAIN MATERIALS -->
-                <div class="space-y-3">
-
-                    <div
-                        class="text-sm font-bold text-gray-700 dark:text-gray-300"
-                    >
-                        🏞️ Terrain Materials
-                    </div>
-
-                    <div class="grid grid-cols-2 gap-2">
-
-                        <label class="feature-card">
-                            <span>Grass</span>
-                            <input
-                                id="material-grass"
-                                type="checkbox"
-                                checked
-                            >
-                        </label>
-
-                        <label class="feature-card">
-                            <span>Dirt</span>
-                            <input
-                                id="material-dirt"
-                                type="checkbox"
-                                checked
-                            >
-                        </label>
-
-                        <label class="feature-card">
-                            <span>Rock</span>
-                            <input
-                                id="material-rock"
-                                type="checkbox"
-                                checked
-                            >
-                        </label>
-
-                        <label class="feature-card">
-                            <span>Sand</span>
-                            <input
-                                id="material-sand"
-                                type="checkbox"
-                                checked
-                            >
-                        </label>
-
-                        <label class="feature-card">
-                            <span>Forest Floor</span>
-                            <input
-                                id="material-forest"
-                                type="checkbox"
-                                checked
-                            >
-                        </label>
-
-                        <label class="feature-card">
-                            <span>Wetland</span>
-                            <input
-                                id="material-wetland"
-                                type="checkbox"
-                                checked
-                            >
-                        </label>
-
-                    </div>
-
-                </div>
-
-
-                <!-- LOCATION -->
-                <div class="space-y-3">
-
-                    <div class="flex items-center gap-2">
-
-                        <span
-                            class="text-sm font-bold text-gray-700 dark:text-gray-300"
-                        >
-                            📍 Center Coordinates
-                        </span>
-
-                    </div>
-
-
-                    <div class="relative">
-
-                        <input
-                            id="location-search"
-                            type="text"
-                            placeholder="Search for a location..."
-                            class="w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded px-3 py-2 pl-8 text-xs text-gray-900 dark:text-white focus:ring-2 focus:ring-[#FF6600] focus:border-[#FF6600] outline-none"
-                        >
-
-                        <span
-                            class="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400"
-                        >
-                            ⌕
-                        </span>
-
-                    </div>
-
-
-                    <div class="grid grid-cols-2 gap-2">
-
-                        <label
-                            class="text-[10px] text-gray-500 dark:text-gray-400"
-                        >
-                            Latitude
-
-                            <input
-                                id="latitude"
-                                type="text"
-                                value="50.6745"
-                                placeholder="Latitude"
-                                class="mt-1 w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded px-2 py-1.5 text-xs text-gray-900 dark:text-white focus:ring-1 focus:ring-[#FF6600] outline-none"
-                            >
-
-                        </label>
-
-
-                        <label
-                            class="text-[10px] text-gray-500 dark:text-gray-400"
-                        >
-                            Longitude
-
-                            <input
-                                id="longitude"
-                                type="text"
-                                value="-120.3273"
-                                placeholder="Longitude"
-                                class="mt-1 w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded px-2 py-1.5 text-xs text-gray-900 dark:text-white focus:ring-1 focus:ring-[#FF6600] outline-none"
-                            >
-
-                        </label>
-
-                    </div>
-
-
-                    <select
-                        id="location-preset"
-                        class="w-full rounded px-2 py-1.5 text-xs bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white cursor-pointer"
-                    >
-
-                        <option value="0">
-                            Select a location...
-                        </option>
-
-                        <option value="kamloops">
-                            Kamloops, BC, Canada
-                        </option>
-
-                        <option value="devils-tower">
-                            Devils Tower, USA
-                        </option>
-
-                        <option value="johnson-valley">
-                            Johnson Valley, USA
-                        </option>
-
-                        <option value="bathurst">
-                            Mount Panorama, Australia
-                        </option>
-
-                        <option value="fuji">
-                            Mount Fuji, Japan
-                        </option>
-
-                        <option value="matterhorn">
-                            Matterhorn, Switzerland
-                        </option>
-
-                        <option value="rossfeld">
-                            Rossfeld Panoramastraße, Germany
-                        </option>
-
-                    </select>
-
-                </div>
-
-
-                <!-- STREET IMAGERY -->
-                <div class="space-y-3">
-
-                    <div class="flex items-center gap-2">
-
-                        <span
-                            class="text-sm font-bold text-gray-700 dark:text-gray-300"
-                        >
-                            📷 Real-World Street Imagery
-                        </span>
-
-                        <span class="phase-label phase-3">
-                            Reference
-                        </span>
-
-                    </div>
-
-
-                    <label
-                        class="text-xs text-gray-500 dark:text-gray-400"
-                    >
-                        Imagery Provider
-
-                        <select
-                            id="imagery-provider"
-                            class="mt-1 w-full rounded px-2 py-1.5 text-xs bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white"
-                        >
-
-                            <option value="kartaview">
-                                KartaView
-                            </option>
-
-                            <option value="mapillary">
-                                Mapillary
-                            </option>
-
-                        </select>
+                        <small>
+                            Enter any positive m/px value.
+                            Lower values provide finer terrain
+                            detail over a smaller area.
+                        </small>
 
                     </label>
 
@@ -1431,57 +372,712 @@
                     <label class="toggle">
 
                         <span>
-                            Show nearby imagery
+                            Include OSM Features
                         </span>
 
                         <input
-                            id="street-imagery"
+                            id="include-osm"
                             type="checkbox"
                             checked
-                            class="accent-[#FF6600] w-4 h-4"
                         >
 
                     </label>
 
 
-                    <div
-                        class="small-help p-2 rounded bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800"
-                    >
-                        Street imagery is a visual/reference layer.
-                        It is not automatically copied into exported
-                        BeamNG textures or assets.
+                    <label class="toggle">
+
+                        <span>
+                            Smooth Roads
+                        </span>
+
+                        <input
+                            id="smooth-roads"
+                            type="checkbox"
+                        >
+
+                    </label>
+
+
+                    <small>
+                        Smooths bumps along roads.
+                        Bridges are skipped.
+                    </small>
+
+
+                    <label class="toggle">
+
+                        <span>
+                            Level Roads (Pathing)
+                        </span>
+
+                        <input
+                            id="level-roads"
+                            type="checkbox"
+                            checked
+                        >
+
+                    </label>
+
+
+                    <small>
+                        Forces roads to have zero
+                        transverse tilt.
+                    </small>
+
+                </section>
+
+
+                <!-- =================================================
+                     ELEVATION SOURCE
+                ================================================== -->
+
+                <section class="section">
+
+                    <h3>
+                        Elevation Data Source
+                    </h3>
+
+                    <label>
+
+                        Source
+
+                        <select id="elevation-source">
+
+                            <option value="default">
+                                Standard — 30m Global
+                            </option>
+
+                            <option value="none">
+                                None — Flat
+                            </option>
+
+                            <option value="kron86">
+                                NMT EVRF2007 — Poland Only
+                            </option>
+
+                            <option value="usgs">
+                                USGS 1m DEM — USA Only
+                            </option>
+
+                            <option value="gpxz">
+                                GPXZ — Premium Global
+                            </option>
+
+                        </select>
+
+                    </label>
+
+                    <small>
+                        Amazon Terrarium / SRTM.
+                        Reliable global terrain coverage.
+                    </small>
+
+                </section>
+
+
+                <!-- =================================================
+                     CENTER COORDINATES
+                ================================================== -->
+
+                <section class="section">
+
+                    <h3>
+                        Center Coordinates
+                    </h3>
+
+
+                    <label>
+
+                        Search for a location
+
+                        <input
+                            id="location-search"
+                            type="search"
+                            placeholder="Search for a location..."
+                            autocomplete="off"
+                        >
+
+                    </label>
+
+
+                    <div class="coordinate-grid">
+
+                        <label>
+
+                            Latitude
+
+                            <input
+                                id="latitude"
+                                type="number"
+                                step="any"
+                                min="-90"
+                                max="90"
+                                value="50.6745"
+                                placeholder="Latitude"
+                            >
+
+                        </label>
+
+
+                        <label>
+
+                            Longitude
+
+                            <input
+                                id="longitude"
+                                type="number"
+                                step="any"
+                                min="-180"
+                                max="180"
+                                value="-120.3273"
+                                placeholder="Longitude"
+                            >
+
+                        </label>
+
                     </div>
 
-                </div>
+
+                    <label>
+
+                        Preset Location
+
+                        <select id="location-preset">
+
+                            <option value="">
+                                Select a location...
+                            </option>
+
+                            <option value="kamloops">
+                                Kamloops, BC, Canada
+                            </option>
+
+                            <option value="devils-tower">
+                                Devils Tower, USA
+                            </option>
+
+                            <option value="eye-sahara">
+                                Eye of the Sahara, Mauritania
+                            </option>
+
+                            <option value="glacier-view">
+                                Glacier View Car Launch, USA
+                            </option>
+
+                            <option value="johnson-valley">
+                                Johnson Valley OHV, USA
+                            </option>
+
+                            <option value="bathurst">
+                                Mount Panorama Bathurst, Australia
+                            </option>
+
+                            <option value="fuji">
+                                Mount Fuji, Japan
+                            </option>
+
+                            <option value="matterhorn">
+                                Matterhorn, Switzerland
+                            </option>
+
+                            <option value="niedzwiedz">
+                                Niedzwiedz, Poland
+                            </option>
+
+                            <option value="rossfeld">
+                                Rossfeld Panoramastraße, Germany
+                            </option>
+
+                            <option value="tail-dragon">
+                                Tail of the Dragon, USA
+                            </option>
+
+                        </select>
+
+                    </label>
+
+                </section>
 
 
-                <!-- SURROUNDING TILES -->
-                <div class="space-y-3">
+                <!-- =================================================
+                     SURROUNDING TILES
+                ================================================== -->
 
-                    <div
-                        class="text-sm font-bold text-gray-700 dark:text-gray-300"
-                    >
-                        ▦ Surrounding Tiles
-                    </div>
+                <section class="section">
 
-                    <select
-                        id="surrounding-texture"
-                        class="w-full rounded px-2 py-1.5 text-xs bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white"
-                    >
+                    <h3>
+                        Surrounding Tiles
+                    </h3>
 
-                        <option value="satellite">
-                            Satellite
-                        </option>
+                    <label class="toggle">
 
-                        <option value="osm">
-                            OSM
-                        </option>
+                        <span>
+                            Enable surrounding terrain
+                        </span>
 
-                        <option value="none">
-                            None
-                        </option>
+                        <input
+                            id="include-surrounding"
+                            type="checkbox"
+                        >
 
-                    </select>
+                    </label>
+
+                </section>
+
+
+                <!-- =================================================
+                     OSM FEATURES
+                ================================================== -->
+
+                <section class="section">
+
+                    <h3>
+                        OSM Features
+                    </h3>
+
+
+                    <label class="toggle">
+
+                        <span>
+                            Real Roads
+                        </span>
+
+                        <input
+                            id="include-roads"
+                            type="checkbox"
+                            checked
+                        >
+
+                    </label>
+
+
+                    <label class="toggle">
+
+                        <span>
+                            Real Building Footprints
+                        </span>
+
+                        <input
+                            id="include-buildings"
+                            type="checkbox"
+                            checked
+                        >
+
+                    </label>
+
+
+                    <label class="toggle">
+
+                        <span>
+                            Bridges
+                        </span>
+
+                        <input
+                            id="include-bridges"
+                            type="checkbox"
+                            checked
+                        >
+
+                    </label>
+
+
+                    <label class="toggle">
+
+                        <span>
+                            Water
+                        </span>
+
+                        <input
+                            id="include-water"
+                            type="checkbox"
+                            checked
+                        >
+
+                    </label>
+
+
+                    <label class="toggle">
+
+                        <span>
+                            Parking Lots
+                        </span>
+
+                        <input
+                            id="include-parking"
+                            type="checkbox"
+                            checked
+                        >
+
+                    </label>
+
+
+                    <label class="toggle">
+
+                        <span>
+                            Fences
+                        </span>
+
+                        <input
+                            id="include-fences"
+                            type="checkbox"
+                            checked
+                        >
+
+                    </label>
+
+
+                    <label class="toggle">
+
+                        <span>
+                            Curbs
+                        </span>
+
+                        <input
+                            id="include-curbs"
+                            type="checkbox"
+                            checked
+                        >
+
+                    </label>
+
+
+                    <label class="toggle">
+
+                        <span>
+                            Streetlights
+                        </span>
+
+                        <input
+                            id="include-streetlights"
+                            type="checkbox"
+                            checked
+                        >
+
+                    </label>
+
+
+                    <label class="toggle">
+
+                        <span>
+                            Utility Poles
+                        </span>
+
+                        <input
+                            id="include-utility-poles"
+                            type="checkbox"
+                            checked
+                        >
+
+                    </label>
+
+                </section>
+
+
+                <!-- =================================================
+                     PHASE 3 TERRAIN
+                ================================================== -->
+
+                <section class="section">
+
+                    <h3>
+                        Phase 3 · Real Terrain
+                    </h3>
+
+
+                    <label class="toggle">
+
+                        <span>
+                            DEM
+                        </span>
+
+                        <input
+                            id="feature-dem"
+                            type="checkbox"
+                            checked
+                        >
+
+                    </label>
+
+
+                    <label class="toggle">
+
+                        <span>
+                            Real Elevation
+                        </span>
+
+                        <input
+                            id="feature-elevation"
+                            type="checkbox"
+                            checked
+                        >
+
+                    </label>
+
+
+                    <label class="toggle">
+
+                        <span>
+                            Terrain Materials
+                        </span>
+
+                        <input
+                            id="feature-terrain-materials"
+                            type="checkbox"
+                            checked
+                        >
+
+                    </label>
+
+
+                    <label class="toggle">
+
+                        <span>
+                            Satellite Imagery
+                        </span>
+
+                        <input
+                            id="feature-satellite"
+                            type="checkbox"
+                        >
+
+                    </label>
+
+
+                    <label class="toggle">
+
+                        <span>
+                            Terrain-aware Buildings
+                        </span>
+
+                        <input
+                            id="feature-terrain-buildings"
+                            type="checkbox"
+                            checked
+                        >
+
+                    </label>
+
+
+                    <label class="toggle">
+
+                        <span>
+                            Terrain-aware Vegetation
+                        </span>
+
+                        <input
+                            id="feature-terrain-vegetation"
+                            type="checkbox"
+                            checked
+                        >
+
+                    </label>
+
+                </section>
+
+
+                <!-- =================================================
+                     3D FEATURES
+                ================================================== -->
+
+                <section class="section">
+
+                    <h3>
+                        3D Features
+                    </h3>
+
+
+                    <label class="toggle">
+
+                        <span>
+                            Water
+                        </span>
+
+                        <input
+                            id="feature-water"
+                            type="checkbox"
+                            checked
+                        >
+
+                    </label>
+
+
+                    <label>
+                        Sea Level Offset
+
+                        <input
+                            id="sea-level-offset"
+                            type="number"
+                            min="-2000"
+                            max="2000"
+                            step="1"
+                            value="0"
+                        >
+
+                    </label>
+
+
+                    <label class="toggle">
+
+                        <span>
+                            Buildings
+                        </span>
+
+                        <input
+                            id="feature-buildings"
+                            type="checkbox"
+                            checked
+                        >
+
+                    </label>
+
+
+                    <label class="toggle">
+
+                        <span>
+                            Vegetation
+                        </span>
+
+                        <input
+                            id="feature-vegetation"
+                            type="checkbox"
+                            checked
+                        >
+
+                    </label>
+
+
+                    <label class="toggle">
+
+                        <span>
+                            Barriers
+                        </span>
+
+                        <input
+                            id="feature-barriers"
+                            type="checkbox"
+                            checked
+                        >
+
+                    </label>
+
+
+                    <label class="toggle">
+
+                        <span>
+                            Curbs
+                        </span>
+
+                        <input
+                            id="feature-curbs-3d"
+                            type="checkbox"
+                            checked
+                        >
+
+                    </label>
+
+
+                    <label class="toggle">
+
+                        <span>
+                            Fences
+                        </span>
+
+                        <input
+                            id="feature-fences"
+                            type="checkbox"
+                            checked
+                        >
+
+                    </label>
+
+
+                    <label class="toggle">
+
+                        <span>
+                            Streetlights
+                        </span>
+
+                        <input
+                            id="feature-lights"
+                            type="checkbox"
+                            checked
+                        >
+
+                    </label>
+
+
+                    <label class="toggle">
+
+                        <span>
+                            Utility Poles
+                        </span>
+
+                        <input
+                            id="feature-utilities"
+                            type="checkbox"
+                            checked
+                        >
+
+                    </label>
+
+                </section>
+
+
+                <!-- =================================================
+                     TEXTURE
+                ================================================== -->
+
+                <section class="section">
+
+                    <h3>
+                        Texture Mode
+                    </h3>
+
+
+                    <label>
+
+                        Base Texture
+
+                        <select id="texture-mode">
+
+                            <option value="satellite">
+                                Satellite
+                            </option>
+
+                            <option value="osm">
+                                OSM
+                            </option>
+
+                            <option value="hybrid">
+                                Hybrid
+                            </option>
+
+                            <option value="none">
+                                None
+                            </option>
+
+                        </select>
+
+                    </label>
+
+
+                    <label>
+
+                        Surroundings Texture
+
+                        <select id="surroundings-texture">
+
+                            <option value="satellite">
+                                Satellite
+                            </option>
+
+                            <option value="none">
+                                None
+                            </option>
+
+                        </select>
+
+                    </label>
 
 
                     <label class="toggle">
@@ -1493,120 +1089,42 @@
                         <input
                             id="surrounding-terrain"
                             type="checkbox"
-                            class="accent-[#FF6600] w-4 h-4"
                         >
 
                     </label>
 
-                </div>
 
+                    <label class="toggle">
 
-                <!-- SCENE SETTINGS -->
-                <div class="space-y-3">
-
-                    <div class="flex items-center gap-2">
-
-                        <span
-                            class="text-sm font-bold text-gray-700 dark:text-gray-300"
-                        >
-                            ⚙ Scene Settings
+                        <span>
+                            Wireframe Mode
                         </span>
 
-                    </div>
-
-
-                    <!-- ENVIRONMENT -->
-
-                    <label
-                        class="text-xs text-gray-500 dark:text-gray-400"
-                    >
-
-                        Environment
-
-                        <select
-                            id="environment"
-                            class="mt-1 w-full rounded px-2 py-1.5 text-xs bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white"
+                        <input
+                            id="wireframe-mode"
+                            type="checkbox"
                         >
-
-                            <option value="clear">
-                                Clear Day
-                            </option>
-
-                            <option value="Kloofendal Pure Sky">
-                                Kloofendal Pure Sky
-                            </option>
-
-                            <option value="overcast">
-                                Overcast
-                            </option>
-
-                            <option value="sunset">
-                                Sunset
-                            </option>
-
-                            <option value="night">
-                                Night
-                            </option>
-
-                        </select>
 
                     </label>
 
-
-                    <!-- SUN -->
-
-                    <label
-                        class="text-xs text-gray-500 dark:text-gray-400"
-                    >
-
-                        Sun Positioning
-
-                        <select
-                            id="sun-position"
-                            class="mt-1 w-full rounded px-2 py-1.5 text-xs bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white"
-                        >
-
-                            <option value="Morning">
-                                Morning
-                            </option>
-
-                            <option value="Mid Morning">
-                                Mid Morning
-                            </option>
-
-                            <option value="Noon" selected>
-                                Noon
-                            </option>
-
-                            <option value="Afternoon">
-                                Afternoon
-                            </option>
-
-                            <option value="Evening">
-                                Evening
-                            </option>
-
-                            <option value="Night">
-                                Night
-                            </option>
-
-                        </select>
-
-                    </label>
+                </section>
 
 
-                    <!-- MESH QUALITY -->
+                <!-- =================================================
+                     MESH QUALITY
+                ================================================== -->
 
-                    <label
-                        class="text-xs text-gray-500 dark:text-gray-400"
-                    >
+                <section class="section">
 
+                    <h3>
                         Mesh Quality
+                    </h3>
 
-                        <select
-                            id="mesh-quality"
-                            class="mt-1 w-full rounded px-2 py-1.5 text-xs bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white"
-                        >
+                    <label>
+
+                        Quality
+
+                        <select id="mesh-quality">
 
                             <option value="medium">
                                 Balanced
@@ -1624,303 +1142,153 @@
 
                     </label>
 
-                </div>
+                </section>
 
 
-                <!-- 3D FEATURES -->
-                <div class="space-y-3">
+                <!-- =================================================
+                     SESSION
+                ================================================== -->
 
-                    <div
-                        class="text-sm font-bold text-gray-700 dark:text-gray-300"
-                    >
-                        ◈ 3D Features
-                    </div>
+                <section class="section">
 
-
-                    <div class="feature-grid">
-
-                        <label class="feature-card">
-                            <span>Water</span>
-                            <input
-                                id="feature-water"
-                                type="checkbox"
-                                checked
-                            >
-                        </label>
-
-                        <label class="feature-card">
-                            <span>Buildings</span>
-                            <input
-                                id="feature-buildings"
-                                type="checkbox"
-                                checked
-                            >
-                        </label>
-
-                        <label class="feature-card">
-                            <span>Vegetation</span>
-                            <input
-                                id="feature-vegetation"
-                                type="checkbox"
-                                checked
-                            >
-                        </label>
-
-                        <label class="feature-card">
-                            <span>Barriers</span>
-                            <input
-                                id="feature-barriers"
-                                type="checkbox"
-                                checked
-                            >
-                        </label>
-
-                        <label class="feature-card">
-                            <span>Fences</span>
-                            <input
-                                id="feature-fences"
-                                type="checkbox"
-                                checked
-                            >
-                        </label>
-
-                        <label class="feature-card">
-                            <span>Streetlights</span>
-                            <input
-                                id="feature-lights"
-                                type="checkbox"
-                                checked
-                            >
-                        </label>
-
-                        <label class="feature-card">
-                            <span>Utility Poles</span>
-                            <input
-                                id="feature-utilities"
-                                type="checkbox"
-                                checked
-                            >
-                        </label>
-
-                        <label class="feature-card">
-                            <span>Curbs</span>
-                            <input
-                                id="feature-curbs"
-                                type="checkbox"
-                                checked
-                            >
-                        </label>
-
-                    </div>
+                    <h3>
+                        Configuration &amp; Session
+                    </h3>
 
 
-                    <div class="flex items-center justify-between gap-2 px-1">
+                    <div class="info-box">
 
-                        <span
-                            class="text-[10px] text-gray-500 dark:text-gray-400"
-                        >
-                            Sea Level Offset
-                        </span>
-
-                        <div class="flex items-center gap-1">
-
-                            <input
-                                id="sea-level-offset"
-                                type="number"
-                                step="1"
-                                min="-2000"
-                                max="2000"
-                                value="0"
-                                class="w-20 text-[9px] bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded px-1.5 py-1 text-gray-600 dark:text-gray-300"
-                            >
-
-                            <span
-                                class="text-[9px] text-gray-500 dark:text-gray-400"
-                            >
-                                m
+                        <div>
+                            <strong>Minimum</strong>
+                            <span id="min-elevation">
+                                346 m
                             </span>
-
-                        </div>
-
-                    </div>
-
-                </div>
-
-
-                <!-- REALISM PRIORITY -->
-                <div
-                    class="p-3 rounded-lg bg-gradient-to-br from-orange-50 to-amber-50 dark:from-orange-900/20 dark:to-amber-900/10 border border-orange-200 dark:border-orange-800"
-                >
-
-                    <div class="flex items-start gap-3">
-
-                        <div class="text-lg">
-                            🏠
                         </div>
 
                         <div>
-
-                            <p
-                                class="text-xs font-semibold text-orange-700 dark:text-orange-300"
-                            >
-                                Realism Priority
-                            </p>
-
-                            <p
-                                class="text-[10px] text-orange-700/90 dark:text-orange-300/90 leading-relaxed mt-1"
-                            >
-                                Super-MapNG prioritizes real road geometry,
-                                actual OSM building footprints, bridges,
-                                fences, curbs, utilities, water and terrain
-                                before decorative objects.
-                            </p>
-
-                        </div>
-
-                    </div>
-
-                </div>
-
-
-                <!-- PERFORMANCE -->
-                <div
-                    class="p-3 rounded-lg bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600"
-                >
-
-                    <div
-                        class="flex items-center justify-between mb-2"
-                    >
-
-                        <span
-                            class="text-xs font-semibold text-gray-700 dark:text-gray-300"
-                        >
-                            Performance
-                        </span>
-
-                        <span
-                            id="performance-mode"
-                            class="text-[9px] px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
-                        >
-                            HIGH DETAIL
-                        </span>
-
-                    </div>
-
-
-                    <div class="grid grid-cols-2 gap-2 text-center">
-
-                        <div
-                            class="rounded border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 p-2"
-                        >
-
-                            <div
-                                class="text-[9px] text-gray-400"
-                            >
-                                Objects
-                            </div>
-
-                            <div
-                                id="preview-object-count"
-                                class="text-xs font-bold text-gray-700 dark:text-gray-200"
-                            >
-                                0
-                            </div>
-
-                        </div>
-
-
-                        <div
-                            class="rounded border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 p-2"
-                        >
-
-                            <div
-                                class="text-[9px] text-gray-400"
-                            >
-                                Buildings
-                            </div>
-
-                            <div
-                                id="preview-building-count"
-                                class="text-xs font-bold text-gray-700 dark:text-gray-200"
-                            >
-                                0
-                            </div>
-
-                        </div>
-
-                    </div>
-
-                </div>
-
-
-                <!-- EXPORT -->
-                <div class="space-y-3 pt-4 border-t border-gray-200 dark:border-gray-600">
-
-                    <div
-                        class="flex items-center justify-between"
-                    >
-
-                        <span
-                            class="flex items-center gap-2 text-sm font-bold text-emerald-600 dark:text-emerald-400"
-                        >
-                            ↓ Ready to Export
-
-                            <span
-                                id="export-resolution"
-                                class="text-xs text-gray-500 dark:text-gray-400 font-normal"
-                            >
-                                512×512
+                            <strong>Maximum</strong>
+                            <span id="max-elevation">
+                                352 m
                             </span>
-                        </span>
+                        </div>
+
+                        <div>
+                            <strong>Difference</strong>
+                            <span id="elevation-difference">
+                                6 m
+                            </span>
+                        </div>
 
                     </div>
 
 
-                    <!-- LEVEL NAME -->
+                    <div class="info-box">
 
-                    <div
-                        class="flex items-center justify-between gap-2"
-                    >
+                        <div>
+                            <strong>Scale</strong>
+                            <span id="scale-display">
+                                1.00 m/px
+                            </span>
+                        </div>
 
-                        <span
-                            class="text-[10px] text-gray-500 dark:text-gray-400"
+                        <div>
+                            <strong>Total Area</strong>
+                            <span id="total-area">
+                                262,144 m²
+                            </span>
+                        </div>
+
+                    </div>
+
+                </section>
+
+
+                <!-- =================================================
+                     SUPPORT
+                ================================================== -->
+
+                <section class="section">
+
+                    <div class="info-box">
+
+                        <strong>
+                            Support Super-MapNG
+                        </strong>
+
+                        <p>
+                            If Super-MapNG helps your workflow,
+                            tips help keep development going.
+                            Optional and always appreciated.
+                        </p>
+
+                        <button
+                            id="donate-button"
+                            type="button"
+                            class="primary full"
                         >
-                            Level Name
-                        </span>
+                            Donate
+                        </button>
+
+                    </div>
+
+                </section>
+
+
+                <!-- =================================================
+                     BEAMNG EXPORT
+                ================================================== -->
+
+                <section class="section">
+
+                    <h3>
+                        Ready to Export
+                    </h3>
+
+
+                    <div class="info-box">
+
+                        <div>
+                            Resolution:
+                            <strong id="export-resolution">
+                                512×512
+                            </strong>
+                        </div>
+
+                        <div>
+                            Mode:
+                            <strong id="performance-mode">
+                                HIGH DETAIL
+                            </strong>
+                        </div>
+
+                    </div>
+
+
+                    <label>
+
+                        BeamNG Level Name
 
                         <input
                             id="level-name"
                             type="text"
                             maxlength="64"
                             placeholder="Suggested from map center"
-                            class="min-w-0 flex-1 text-[9px] bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded px-1.5 py-1 text-gray-600 dark:text-gray-300"
                         >
 
-                    </div>
+                    </label>
 
 
-                    <!-- BASE TEXTURE -->
+                    <label>
 
-                    <div
-                        class="flex items-center justify-between gap-2"
-                    >
+                        Base Texture
 
-                        <span
-                            class="text-[10px] text-gray-500 dark:text-gray-400"
-                        >
-                            Base Texture
-                        </span>
-
-                        <select
-                            id="base-texture"
-                            class="rounded px-1.5 py-1 text-[11px] bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white"
-                        >
+                        <select id="beamng-base-texture">
 
                             <option value="none">
                                 None
                             </option>
 
-                            <option value="hybrid" selected>
+                            <option value="hybrid">
                                 Satellite Hybrid
                             </option>
 
@@ -1934,176 +1302,35 @@
 
                         </select>
 
-                    </div>
-
-
-                    <!-- PBR -->
-
-                    <div
-                        class="flex items-center justify-between gap-2"
-                    >
-
-                        <span
-                            class="text-[10px] text-gray-500 dark:text-gray-400"
-                        >
-                            PBR Materials
-                        </span>
-
-                        <select
-                            id="pbr-materials"
-                            class="rounded px-1.5 py-1 text-[11px] bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white"
-                        >
-
-                            <option value="none">
-                                Off
-                            </option>
-
-                            <option value="osm" selected>
-                                OSM Data
-                            </option>
-
-                        </select>
-
-                    </div>
-
-
-                    <!-- BUILDINGS -->
-
-                    <label class="toggle">
-
-                        <span>
-                            Include Buildings
-                        </span>
-
-                        <input
-                            id="export-buildings"
-                            type="checkbox"
-                            checked
-                            class="accent-[#FF6600] w-4 h-4"
-                        >
-
                     </label>
 
-
-                    <!-- FOUNDATIONS -->
-
-                    <label class="toggle">
-
-                        <span>
-                            Apply Foundations
-                        </span>
-
-                        <input
-                            id="apply-foundations"
-                            type="checkbox"
-                            class="accent-[#FF6600] w-4 h-4"
-                        >
-
-                    </label>
-
-
-                    <!-- TREES -->
-
-                    <label class="toggle">
-
-                        <span>
-                            Trees / Bushes
-                        </span>
-
-                        <input
-                            id="export-trees"
-                            type="checkbox"
-                            checked
-                            class="accent-[#FF6600] w-4 h-4"
-                        >
-
-                    </label>
-
-
-                    <!-- ROCKS -->
-
-                    <label class="toggle">
-
-                        <span>
-                            Rocks
-                        </span>
-
-                        <input
-                            id="export-rocks"
-                            type="checkbox"
-                            class="accent-[#FF6600] w-4 h-4"
-                        >
-
-                    </label>
-
-
-                    <!-- WATER -->
-
-                    <label class="toggle">
-
-                        <span>
-                            Water
-                        </span>
-
-                        <input
-                            id="export-water"
-                            type="checkbox"
-                            checked
-                            class="accent-[#FF6600] w-4 h-4"
-                        >
-
-                    </label>
-
-
-                    <!-- EXPORT BUTTON -->
 
                     <button
                         id="beamng-export"
                         type="button"
-                        class="relative w-full flex items-center gap-3 p-3 bg-[#FF6600] hover:bg-[#e85d00] border border-[#d65500] rounded text-white transition-colors group"
+                        class="primary full"
                     >
-
-                        <div
-                            class="flex items-center justify-center w-8 h-8 shrink-0"
-                        >
-                            📦
-                        </div>
-
-                        <div class="text-left">
-
-                            <div class="text-[12px] font-semibold">
-                                BeamNG Level Export
-                            </div>
-
-                            <div class="text-[10px] text-white/90">
-                                Generate playable .zip package
-                            </div>
-
-                        </div>
-
-                        <span
-                            class="absolute top-1 right-1 opacity-70 group-hover:opacity-100"
-                        >
-                            ↓
-                        </span>
-
+                        ↓ Export BeamNG Level
                     </button>
 
-                </div>
+                </section>
 
 
-                <!-- RESET -->
-                <div class="pt-4">
+                <!-- =================================================
+                     RESET
+                ================================================== -->
+
+                <section class="section">
 
                     <button
                         id="reset-camera"
                         type="button"
-                        class="w-full flex items-center justify-center gap-2 py-2 bg-gray-900 dark:bg-gray-700 hover:bg-black dark:hover:bg-gray-600 text-white text-xs font-bold rounded-md transition-colors shadow-lg shadow-black/10"
+                        class="secondary full"
                     >
                         ↻ Reset Camera
                     </button>
 
-                </div>
+                </section>
 
             </div>
 
@@ -2114,863 +1341,114 @@
 </div>
 
 
-<!-- THREE.JS + APP -->
-
-<script type="importmap">
-{
-    "imports": {
-        "three": "https://cdn.jsdelivr.net/npm/three@0.179.1/build/three.module.js",
-        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.179.1/examples/jsm/"
-    }
-}
-</script>
-
+<!-- =============================================================
+     THREE.JS SCENE
+============================================================== -->
 
 <script type="module">
 
-    import * as THREE from "three";
-    import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-
-    const container =
-        document.getElementById("three-container");
-
-    const mapElement =
-        document.getElementById("map");
-
-    const scene =
-        new THREE.Scene();
-
-    scene.background =
-        new THREE.Color(0x9ec7e5);
-
-
-    /* CAMERA */
-
-    const camera =
-        new THREE.PerspectiveCamera(
-            55,
-            mapElement.clientWidth /
-            mapElement.clientHeight,
-            0.1,
-            10000
-        );
-
-    camera.position.set(
-        350,
-        300,
-        350
-    );
-
-
-    /* RENDERER */
-
-    const renderer =
-        new THREE.WebGLRenderer({
-            antialias: true,
-            powerPreference: "high-performance"
-        });
-
-    renderer.setPixelRatio(
-        Math.min(
-            window.devicePixelRatio || 1,
-            2
-        )
-    );
-
-    renderer.setSize(
-        mapElement.clientWidth,
-        mapElement.clientHeight
-    );
-
-    renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type =
-        THREE.PCFSoftShadowMap;
-
-    container.appendChild(
-        renderer.domElement
-    );
-
-
-    /* CONTROLS */
-
-    const controls =
-        new OrbitControls(
-            camera,
-            renderer.domElement
-        );
-
-    controls.enableDamping = true;
-    controls.dampingFactor = 0.06;
-
-    controls.maxPolarAngle =
-        Math.PI * 0.48;
-
-    controls.minDistance = 20;
-    controls.maxDistance = 5000;
-
-    controls.target.set(
-        0,
-        0,
-        0
-    );
-
-
-    /* LIGHTING */
-
-    const hemisphere =
-        new THREE.HemisphereLight(
-            0xddeeff,
-            0x5b6d51,
-            2.1
-        );
-
-    scene.add(hemisphere);
-
-
-    const sun =
-        new THREE.DirectionalLight(
-            0xffffff,
-            3.2
-        );
-
-    sun.position.set(
-        300,
-        500,
-        200
-    );
-
-    sun.castShadow = true;
-
-    sun.shadow.mapSize.set(
-        2048,
-        2048
-    );
-
-    sun.shadow.camera.left = -700;
-    sun.shadow.camera.right = 700;
-    sun.shadow.camera.top = 700;
-    sun.shadow.camera.bottom = -700;
-
-    scene.add(sun);
-
-
-    /* DEMO TERRAIN */
-
-    const terrainSize = 1082;
-
-    const terrainGeometry =
-        new THREE.PlaneGeometry(
-            terrainSize,
-            terrainSize,
-            64,
-            64
-        );
-
-    terrainGeometry.rotateX(
-        -Math.PI / 2
-    );
-
-
-    const positionAttribute =
-        terrainGeometry.attributes.position;
-
-    for (
-        let i = 0;
-        i < positionAttribute.count;
-        i++
-    ) {
-
-        const x =
-            positionAttribute.getX(i);
-
-        const z =
-            positionAttribute.getZ(i);
-
-        const height =
-            Math.sin(x * 0.015) * 2.5 +
-            Math.cos(z * 0.012) * 2.0 +
-            Math.sin(
-                (x + z) * 0.006
-            ) * 5;
-
-        positionAttribute.setY(
-            i,
-            height
-        );
-
-    }
-
-    positionAttribute.needsUpdate = true;
-
-    terrainGeometry.computeVertexNormals();
-
-
-    const terrainMaterial =
-        new THREE.MeshStandardMaterial({
-            color: 0x65845c,
-            roughness: 1
-        });
-
-
-    const terrain =
-        new THREE.Mesh(
-            terrainGeometry,
-            terrainMaterial
-        );
-
-    terrain.receiveShadow = true;
-
-    scene.add(terrain);
-
-
-    /* DEMO WATER */
-
-    const waterGeometry =
-        new THREE.PlaneGeometry(
-            240,
-            150
-        );
-
-    waterGeometry.rotateX(
-        -Math.PI / 2
-    );
-
-    const waterMaterial =
-        new THREE.MeshStandardMaterial({
-            color: 0x3e8fa8,
-            transparent: true,
-            opacity: 0.78,
-            roughness: 0.12
-        });
-
-    const water =
-        new THREE.Mesh(
-            waterGeometry,
-            waterMaterial
-        );
-
-    water.position.set(
-        160,
-        5,
-        -180
-    );
-
-    scene.add(water);
-
-
-    /* DEMO ROAD */
-
-    const roadGeometry =
-        new THREE.BoxGeometry(
-            26,
-            0.25,
-            900
-        );
-
-    const roadMaterial =
-        new THREE.MeshStandardMaterial({
-            color: 0x303030,
-            roughness: 0.96
-        });
-
-    const road =
-        new THREE.Mesh(
-            roadGeometry,
-            roadMaterial
-        );
-
-    road.position.set(
-        -130,
-        5,
-        0
-    );
-
-    road.receiveShadow = true;
-
-    scene.add(road);
-
-
-    /* DEMO BUILDINGS */
-
-    function addBuilding(
-        x,
-        z,
-        width,
-        depth,
-        height,
-        color
-    ) {
-
-        const geometry =
-            new THREE.BoxGeometry(
-                width,
-                height,
-                depth
-            );
-
-        const material =
-            new THREE.MeshStandardMaterial({
-                color,
-                roughness: 0.82
-            });
-
-        const mesh =
-            new THREE.Mesh(
-                geometry,
-                material
-            );
-
-        mesh.position.set(
-            x,
-            height / 2 + 5,
-            z
-        );
-
-        mesh.castShadow = true;
-        mesh.receiveShadow = true;
-
-        scene.add(mesh);
-
-        return mesh;
-    }
-
-
-    addBuilding(
-        -90,
-        -90,
-        32,
-        24,
-        11,
-        0xcfc2ab
-    );
-
-    addBuilding(
-        -45,
-        -75,
-        24,
-        20,
-        8,
-        0xd9d0bf
-    );
-
-    addBuilding(
-        -30,
-        75,
-        70,
-        46,
-        12,
-        0x8e969b
-    );
-
-
-    /* DEMO TREES */
-
-    const trunkGeometry =
-        new THREE.CylinderGeometry(
-            0.5,
-            0.7,
-            4,
-            8
-        );
-
-    const leafGeometry =
-        new THREE.ConeGeometry(
-            3.4,
-            8,
-            8
-        );
-
-    const trunkMaterial =
-        new THREE.MeshStandardMaterial({
-            color: 0x65452d
-        });
-
-    const leafMaterial =
-        new THREE.MeshStandardMaterial({
-            color: 0x2f6334
-        });
-
-    const treeCount = 180;
-
-    const trunks =
-        new THREE.InstancedMesh(
-            trunkGeometry,
-            trunkMaterial,
-            treeCount
-        );
-
-    const leaves =
-        new THREE.InstancedMesh(
-            leafGeometry,
-            leafMaterial,
-            treeCount
-        );
-
-    const matrix =
-        new THREE.Matrix4();
-
-    for (
-        let i = 0;
-        i < treeCount;
-        i++
-    ) {
-
-        const x =
-            -500 +
-            Math.random() * 1000;
-
-        const z =
-            -500 +
-            Math.random() * 1000;
-
-        if (
-            Math.abs(x + 130) < 55
-        ) {
-            continue;
-        }
-
-        const scale =
-            0.75 +
-            Math.random() * 0.65;
-
-        matrix.compose(
-            new THREE.Vector3(
-                x,
-                7,
-                z
-            ),
-            new THREE.Quaternion(),
-            new THREE.Vector3(
-                scale,
-                scale,
-                scale
-            )
-        );
-
-        leaves.setMatrixAt(
-            i,
-            matrix
-        );
-
-
-        matrix.compose(
-            new THREE.Vector3(
-                x,
-                2,
-                z
-            ),
-            new THREE.Quaternion(),
-            new THREE.Vector3(
-                scale,
-                scale,
-                scale
-            )
-        );
-
-        trunks.setMatrixAt(
-            i,
-            matrix
-        );
-
-    }
-
-    trunks.castShadow = true;
-    leaves.castShadow = true;
-
-    scene.add(trunks);
-    scene.add(leaves);
-
-
-    /* RESIZE */
-
-    function resize() {
-
-        const width =
-            mapElement.clientWidth;
-
-        const height =
-            mapElement.clientHeight;
-
-        camera.aspect =
-            width / height;
-
-        camera.updateProjectionMatrix();
-
-        renderer.setSize(
-            width,
-            height
-        );
-
-    }
-
-    window.addEventListener(
-        "resize",
-        resize
-    );
-
-    resize();
-
-
-    /* CAMERA BUTTONS */
-
-    document
-        .getElementById("cameraHome")
-        ?.addEventListener(
-            "click",
-            () => {
-
-                camera.position.set(
-                    350,
-                    300,
-                    350
-                );
-
-                controls.target.set(
-                    0,
-                    0,
-                    0
-                );
-
-                controls.update();
-
-            }
-        );
-
-
-    document
-        .getElementById("cameraTop")
-        ?.addEventListener(
-            "click",
-            () => {
-
-                camera.position.set(
-                    0,
-                    850,
-                    0
-                );
-
-                camera.lookAt(
-                    0,
-                    0,
-                    0
-                );
-
-                controls.target.set(
-                    0,
-                    0,
-                    0
-                );
-
-                controls.update();
-
-            }
-        );
-
-
-    document
-        .getElementById("cameraOrbit")
-        ?.addEventListener(
-            "click",
-            () => {
-
-                camera.position.set(
-                    500,
-                    180,
-                    150
-                );
-
-                controls.target.set(
-                    0,
-                    0,
-                    0
-                );
-
-                controls.update();
-
-            }
-        );
-
-
-    document
-        .getElementById("reset-camera")
-        ?.addEventListener(
-            "click",
-            () => {
-
-                camera.position.set(
-                    350,
-                    300,
-                    350
-                );
-
-                controls.target.set(
-                    0,
-                    0,
-                    0
-                );
-
-                controls.update();
-
-            }
-        );
-
-
-    /* ANIMATION */
-
-    function animate() {
-
-        requestAnimationFrame(
-            animate
-        );
-
-        controls.update();
-
-        renderer.render(
-            scene,
-            camera
-        );
-
-    }
-
-    animate();
-
-
-    /* EXPOSE ENGINE */
-
-    window.SuperMapNGThree = {
-        THREE,
-        scene,
-        camera,
-        renderer,
-        controls,
-        terrain,
-        water
-    };
+    /*
+     * Load the Three.js scene first.
+     *
+     * scene.js creates:
+     * - renderer
+     * - camera
+     * - OrbitControls
+     * - terrain
+     * - water
+     * - road
+     * - buildings
+     * - vegetation
+     *
+     * It also exposes:
+     *
+     * window.SuperMapNGThree
+     */
+
+    import "./js/scene.js";
 
 </script>
 
 
-<!-- MAIN APP -->
-<script
-    type="module"
-    src="./js/app.js"
-></script>
+<!-- =============================================================
+     APPLICATION
+============================================================== -->
 
+<script type="module">
+
+    /*
+     * Load the application controller after
+     * the Three.js scene.
+     */
+
+    import "./js/app.js";
+
+</script>
+
+
+<!-- =============================================================
+     SMALL UI HELPERS
+============================================================== -->
 
 <script>
 
-    /* ---------------------------------------------------------
-       UI HELPERS
-    --------------------------------------------------------- */
+(function () {
 
-    const body =
-        document.body;
+    "use strict";
+
+
+    /* =========================================================
+       DARK MODE
+    ========================================================== */
 
     const themeButton =
         document.getElementById(
-            "themeButton"
+            "theme-toggle"
         );
 
-    themeButton?.addEventListener(
-        "click",
-        () => {
-
-            body.classList.toggle(
-                "dark"
-            );
-
-        }
-    );
-
-
-    /* Processing overlay */
-
-    const previewButton =
-        document.getElementById(
-            "preview-3d"
+    const savedTheme =
+        localStorage.getItem(
+            "super-mapng-theme"
         );
 
-    const processingOverlay =
-        document.getElementById(
-            "processing-overlay"
+    if (savedTheme === "dark") {
+
+        document.body.classList.add(
+            "dark"
         );
-
-    const processingMessage =
-        document.getElementById(
-            "processing-message"
-        );
-
-    const cancelProcessing =
-        document.getElementById(
-            "cancel-processing"
-        );
-
-
-    let processingCancelled =
-        false;
-
-
-    previewButton?.addEventListener(
-        "click",
-        () => {
-
-            processingCancelled = false;
-
-            processingOverlay.classList.add(
-                "active"
-            );
-
-            processingMessage.textContent =
-                "Fetching OpenStreetMap data...";
-
-            const messages = [
-                "Fetching OpenStreetMap data...",
-                "Parsing roads and building footprints...",
-                "Loading terrain data...",
-                "Generating water and parking...",
-                "Generating fences and barriers...",
-                "Placing streetlights and utility poles...",
-                "Optimizing 3D scene..."
-            ];
-
-            let index = 0;
-
-            const timer =
-                setInterval(
-                    () => {
-
-                        if (
-                            processingCancelled
-                        ) {
-
-                            clearInterval(
-                                timer
-                            );
-
-                            return;
-                        }
-
-                        index++;
-
-                        if (
-                            index >= messages.length
-                        ) {
-
-                            clearInterval(
-                                timer
-                            );
-
-                            processingOverlay.classList.remove(
-                                "active"
-                            );
-
-                            processingMessage.textContent =
-                                "Complete.";
-
-                            return;
-                        }
-
-                        processingMessage.textContent =
-                            messages[index];
-
-                    },
-                    800
-                );
-
-        }
-    );
-
-
-    cancelProcessing?.addEventListener(
-        "click",
-        () => {
-
-            processingCancelled = true;
-
-            processingOverlay.classList.remove(
-                "active"
-            );
-
-        }
-    );
-
-
-    /* Resolution display */
-
-    const resolution =
-        document.getElementById(
-            "resolution"
-        );
-
-    const exportResolution =
-        document.getElementById(
-            "export-resolution"
-        );
-
-
-    function updateResolutionDisplay() {
-
-        const value =
-            resolution?.value ||
-            "512";
-
-        if (exportResolution) {
-
-            exportResolution.textContent =
-                `${value}×${value}`;
-
-        }
-
-        const performanceMode =
-            document.getElementById(
-                "performance-mode"
-            );
-
-        if (!performanceMode) {
-            return;
-        }
-
-        const size =
-            Number(value);
-
-        if (size <= 1082) {
-
-            performanceMode.textContent =
-                "HIGH DETAIL";
-
-            performanceMode.className =
-                "text-[9px] px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400";
-
-        } else if (size <= 2048) {
-
-            performanceMode.textContent =
-                "OPTIMIZED";
-
-            performanceMode.className =
-                "text-[9px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400";
-
-        } else {
-
-            performanceMode.textContent =
-                "HEAVY MAP";
-
-            performanceMode.className =
-                "text-[9px] px-1.5 py-0.5 rounded bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400";
-
-        }
 
     }
 
 
-    resolution?.addEventListener(
-        "change",
-        updateResolutionDisplay
+    themeButton?.addEventListener(
+        "click",
+        function () {
+
+            document.body.classList.toggle(
+                "dark"
+            );
+
+            localStorage.setItem(
+                "super-mapng-theme",
+                document.body.classList.contains(
+                    "dark"
+                )
+                    ? "dark"
+                    : "light"
+            );
+
+        }
     );
 
-    updateResolutionDisplay();
 
+    /* =========================================================
+       LOCATION PRESETS
+    ========================================================== */
 
-    /* Coordinate readout */
+    const preset =
+        document.getElementById(
+            "location-preset"
+        );
 
     const latitude =
         document.getElementById(
@@ -2982,113 +1460,310 @@
             "longitude"
         );
 
-    const mapCoordinates =
+    const locations = {
+
+        kamloops: [
+            50.6745,
+            -120.3273
+        ],
+
+        "devils-tower": [
+            44.5902,
+            -104.7156
+        ],
+
+        "eye-sahara": [
+            21.1242,
+            -11.4011
+        ],
+
+        "glacier-view": [
+            61.102,
+            -145.611
+        ],
+
+        "johnson-valley": [
+            34.421,
+            -116.55
+        ],
+
+        bathurst: [
+            -33.445,
+            149.561
+        ],
+
+        fuji: [
+            35.3606,
+            138.7274
+        ],
+
+        matterhorn: [
+            45.9763,
+            7.6586
+        ],
+
+        niedzwiedz: [
+            49.7,
+            20.1
+        ],
+
+        rossfeld: [
+            47.632,
+            13.043
+        ],
+
+        "tail-dragon": [
+            35.466,
+            -84.033
+        ]
+
+    };
+
+
+    preset?.addEventListener(
+        "change",
+        function () {
+
+            const location =
+                locations[
+                    this.value
+                ];
+
+            if (!location) {
+                return;
+            }
+
+            latitude.value =
+                location[0];
+
+            longitude.value =
+                location[1];
+
+            latitude.dispatchEvent(
+                new Event("change")
+            );
+
+            longitude.dispatchEvent(
+                new Event("change")
+            );
+
+        }
+    );
+
+
+    /* =========================================================
+       COORDINATE DISPLAY
+    ========================================================== */
+
+    const coordinates =
         document.getElementById(
             "map-coordinates"
         );
 
+    function updateCoordinates() {
 
-    function updateCoordinateDisplay() {
-
-        if (
-            !latitude ||
-            !longitude ||
-            !mapCoordinates
-        ) {
+        if (!coordinates) {
             return;
         }
 
-        mapCoordinates.textContent =
-            `Lat: ${latitude.value} · Lon: ${longitude.value}`;
+        coordinates.textContent =
+            `Lat: ${latitude.value || "--"} · Lon: ${longitude.value || "--"}`;
 
     }
 
-
     latitude?.addEventListener(
         "input",
-        updateCoordinateDisplay
+        updateCoordinates
     );
 
     longitude?.addEventListener(
         "input",
-        updateCoordinateDisplay
+        updateCoordinates
     );
 
 
-    /* Feature aliases */
+    /* =========================================================
+       RESET CAMERA
+    ========================================================== */
 
-    const aliases = [
-        ["include-roads", "feature-roads"],
-        ["include-buildings", "feature-buildings"],
-        ["include-water", "feature-water"],
-        ["include-fences", "feature-fences"],
-        ["include-streetlights", "feature-lights"],
-        ["include-utility-poles", "feature-utilities"],
-        ["include-curbs", "feature-curbs"]
-    ];
+    document
+        .getElementById(
+            "reset-camera"
+        )
+        ?.addEventListener(
+            "click",
+            function () {
 
+                const engine =
+                    window.SuperMapNGThree;
 
-    for (
-        const [sourceId, targetId]
-        of aliases
-    ) {
-
-        const source =
-            document.getElementById(
-                sourceId
-            );
-
-        const target =
-            document.getElementById(
-                targetId
-            );
-
-        if (
-            source &&
-            target
-        ) {
-
-            source.addEventListener(
-                "change",
-                () => {
-
-                    target.checked =
-                        source.checked;
-
+                if (!engine) {
+                    return;
                 }
+
+                engine.camera.position.set(
+                    350,
+                    300,
+                    350
+                );
+
+                engine.controls.target.set(
+                    0,
+                    0,
+                    0
+                );
+
+                engine.controls.update();
+
+            }
+        );
+
+
+    /* =========================================================
+       DONATE
+    ========================================================== */
+
+    document
+        .getElementById(
+            "donate-button"
+        )
+        ?.addEventListener(
+            "click",
+            function () {
+
+                alert(
+                    "Thank you for supporting Super-MapNG!"
+                );
+
+            }
+        );
+
+
+    /* =========================================================
+       ELEVATION UPLOAD
+    ========================================================== */
+
+    const elevationUpload =
+        document.getElementById(
+            "elevation-upload"
+        );
+
+    elevationUpload?.addEventListener(
+        "change",
+        function () {
+
+            if (!this.files.length) {
+                return;
+            }
+
+            const names =
+                Array.from(
+                    this.files
+                )
+                .map(
+                    file => file.name
+                )
+                .join(", ");
+
+            console.log(
+                "Elevation files selected:",
+                names
             );
+
+        }
+    );
+
+
+    /* =========================================================
+       RESOLUTION DISPLAY
+    ========================================================== */
+
+    const resolution =
+        document.getElementById(
+            "resolution"
+        );
+
+    const exportResolution =
+        document.getElementById(
+            "export-resolution"
+        );
+
+    const performanceMode =
+        document.getElementById(
+            "performance-mode"
+        );
+
+    function updateResolution() {
+
+        const value =
+            Number(
+                resolution?.value || 512
+            );
+
+        if (exportResolution) {
+
+            exportResolution.textContent =
+                `${value}×${value}`;
+
+        }
+
+        if (!performanceMode) {
+            return;
+        }
+
+        if (value <= 1082) {
+
+            performanceMode.textContent =
+                "HIGH DETAIL";
+
+        } else if (value <= 2048) {
+
+            performanceMode.textContent =
+                "OPTIMIZED";
+
+        } else {
+
+            performanceMode.textContent =
+                "HEAVY MAP";
 
         }
 
     }
 
+    resolution?.addEventListener(
+        "change",
+        updateResolution
+    );
 
-    /*
-       Make sure Three.js is present immediately.
-       app.js can use window.SuperMapNGThree
-       to add future OSM/DEM geometry.
-    */
+    updateResolution();
 
-    if (
-        window.SuperMapNGThree
-    ) {
 
-        const status =
-            document.getElementById(
-                "map-engine-status"
-            );
+    /* =========================================================
+       APP READY
+    ========================================================== */
 
-        if (status) {
+    window.addEventListener(
+        "load",
+        function () {
 
-            status.textContent =
-                "Three.js scene ready · 3D terrain preview active";
+            const status =
+                document.getElementById(
+                    "app-status"
+                );
+
+            if (status) {
+
+                status.innerHTML =
+                    '<span class="status-dot"></span> Ready';
+
+            }
 
         }
+    );
 
-    }
+})();
 
 </script>
 
 </body>
 </html>
-:::
