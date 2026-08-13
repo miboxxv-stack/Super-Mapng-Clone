@@ -1,0 +1,534 @@
+<template>
+  <div class="w-full h-full bg-gray-100 relative z-0">
+     <l-map 
+        ref="mapRef"
+        :center="[center.lat, center.lng]" 
+        :zoom="zoom" 
+        :options="mapOptions"
+        style="height: 100%; width: 100%"
+        @move="handleMove"
+        @zoom="handleZoom"
+     >
+      <!-- Base Layers -->
+      <l-tile-layer
+        v-if="selectedLayer === 'osm'"
+        :url="osmUrl"
+        :attribution="osmAttribution"
+        layer-type="base"
+      />
+
+      <l-tile-layer
+        v-if="selectedLayer === 'satellite'"
+        url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+        attribution="&copy; <a href='https://www.esri.com/'>Esri</a>"
+        layer-type="base"
+        :max-zoom="18"
+      />
+
+      <l-tile-layer
+        v-if="selectedLayer === 'topo'"
+        url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}"
+        attribution="&copy; <a href='https://www.esri.com/'>Esri</a>"
+        layer-type="base"
+      />
+
+      <!-- Overlay -->
+      <l-tile-layer
+        v-if="showLabels"
+        url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager_only_labels/{z}/{x}/{y}{r}.png"
+        attribution="&copy; <a href='https://www.openstreetmap.org/copyright'>OpenStreetMap</a> contributors &copy; <a href='https://carto.com/attributions'>CARTO</a>"
+        layer-type="overlay"
+        :opacity="0.7"
+      />
+      
+      <l-rectangle 
+        v-if="selectionBounds && !hasBatchGrid && !showUploadedCoverageBounds"
+        :bounds="[[selectionBounds.south, selectionBounds.west], [selectionBounds.north, selectionBounds.east]]" 
+        color="#FF6600"
+        :weight="2"
+        :fill-opacity="0.1"
+        :options="{ dashArray: '2, 8', lineCap: 'round' }"
+      />
+
+      <l-rectangle
+        v-if="showUploadedCoverageBounds && !hasBatchGrid"
+        :bounds="[[nativeCoverageBounds.south, nativeCoverageBounds.west], [nativeCoverageBounds.north, nativeCoverageBounds.east]]"
+        color="#3B82F6"
+        :weight="1.5"
+        :fill-opacity="0.04"
+        :options="{ dashArray: '5, 7', lineCap: 'round' }"
+      />
+
+      <l-rectangle
+        v-for="tile in uploadedCoverageTiles"
+        v-if="showUploadedTileZones && !hasBatchGrid"
+        :key="`uploaded-zip-tile-${tile.index}`"
+        :bounds="[[tile.bounds.south, tile.bounds.west], [tile.bounds.north, tile.bounds.east]]"
+        color="#60A5FA"
+        :weight="1"
+        :fill-opacity="0.02"
+        :options="{ dashArray: '3, 4', lineCap: 'round' }"
+      >
+        <l-tooltip :permanent="false" direction="top" :offset="[0, -6]">
+          {{ tile.label }}
+        </l-tooltip>
+      </l-rectangle>
+
+      <l-rectangle
+        v-for="tile in uploadedMissingTiles"
+        v-if="showUploadedTileZones && !hasBatchGrid"
+        :key="`uploaded-zip-missing-${tile.row}-${tile.col}`"
+        :bounds="[[tile.bounds.south, tile.bounds.west], [tile.bounds.north, tile.bounds.east]]"
+        color="#EF4444"
+        :weight="1.5"
+        :fill-opacity="0.08"
+        :options="{ dashArray: '2, 6', lineCap: 'round' }"
+      >
+        <l-tooltip :permanent="false" direction="top" :offset="[0, -6]">
+          Missing {{ tile.label }}
+        </l-tooltip>
+      </l-rectangle>
+
+      <l-rectangle
+        v-if="uploadedCropBounds && !hasBatchGrid"
+        :bounds="[[uploadedCropBounds.south, uploadedCropBounds.west], [uploadedCropBounds.north, uploadedCropBounds.east]]"
+        color="#FF6600"
+        :weight="2"
+        :fill-opacity="0.1"
+        :options="{ dashArray: '2, 8', lineCap: 'round' }"
+      />
+
+      <!-- Batch Grid Tiles -->
+      <l-rectangle
+        v-for="tile in batchGrid"
+        :key="'batch-' + tile.index"
+        :bounds="[[tile.bounds.south, tile.bounds.west], [tile.bounds.north, tile.bounds.east]]"
+        :color="batchTileColor(tile)"
+        :weight="tile.status === 'processing' ? 2.5 : 1.5"
+        :fill-opacity="batchTileFillOpacity(tile)"
+        :options="{ dashArray: tile.status === 'pending' ? '4, 6' : undefined, lineCap: 'round' }"
+      />
+
+      <l-marker
+        v-for="tile in batchGrid"
+        v-if="batchEditable"
+        :key="'batch-handle-' + tile.index"
+        :lat-lng="[tile.center.lat, tile.center.lng]"
+        :draggable="true"
+        :icon="batchHandleIcon"
+        @drag="(event) => handleBatchTileDrag(tile, event)"
+        @dragend="(event) => handleBatchTileDrag(tile, event)"
+      >
+        <l-tooltip :permanent="false" direction="top" :offset="[0, -8]">
+          {{ t('mapSelector.moveTile', { label: tile.label || `R${tile.row + 1}C${tile.col + 1}` }) }}
+        </l-tooltip>
+      </l-marker>
+
+      <!-- Surrounding Tile Bounding Boxes (hidden during batch mode) -->
+      <l-rectangle
+        v-for="rect in surroundingBounds"
+        v-if="!hasBatchGrid"
+        :key="rect.key"
+        :bounds="[[rect.south, rect.west], [rect.north, rect.east]]"
+        color="#3B82F6"
+        :weight="1.5"
+        :fill-opacity="0.06"
+        :options="{ dashArray: '4, 6', lineCap: 'round' }"
+      />
+    </l-map>
+
+    <!-- Live free-dataset elevation preview, fitted to the selection area -->
+    <ElevationOverlay :bounds="elevationOverlayBounds" />
+
+    <!-- Custom Layer Control -->
+    <div class="absolute bottom-20 right-4 z-[400] bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-600 overflow-hidden text-gray-800 dark:text-gray-200 text-xs">
+        <div class="bg-gray-50 dark:bg-gray-700 px-3 py-2 border-b border-gray-200 dark:border-gray-600 font-medium flex items-center gap-2">
+            <Layers :size="14" class="text-[#FF6600]" />
+          {{ t('mapSelector.mapLayers') }}
+        </div>
+        <div class="p-2 space-y-1">
+            <label class="flex items-center gap-2 p-1 hover:bg-gray-50 dark:hover:bg-gray-700 rounded cursor-pointer">
+                <input type="radio" v-model="selectedLayer" value="osm" class="accent-[#FF6600]" />
+            <span>{{ t('mapSelector.openStreetMap') }}</span>
+            </label>
+            <label class="flex items-center gap-2 p-1 hover:bg-gray-50 dark:hover:bg-gray-700 rounded cursor-pointer">
+                <input type="radio" v-model="selectedLayer" value="satellite" class="accent-[#FF6600]" />
+            <span>{{ t('mapSelector.satellite') }}</span>
+            </label>
+            <label class="flex items-center gap-2 p-1 hover:bg-gray-50 dark:hover:bg-gray-700 rounded cursor-pointer">
+                <input type="radio" v-model="selectedLayer" value="topo" class="accent-[#FF6600]" />
+            <span>{{ t('mapSelector.topoMap') }}</span>
+            </label>
+            <div class="h-px bg-gray-100 dark:bg-gray-600 my-1"></div>
+            <label class="flex items-center gap-2 p-1 hover:bg-gray-50 dark:hover:bg-gray-700 rounded cursor-pointer">
+                <input type="checkbox" v-model="showLabels" :class="CHECKBOX" />
+            <span>{{ t('mapSelector.showLabels') }}</span>
+            </label>
+        </div>
+    </div>
+
+    <!-- Edit in OSM CTA -->
+    <div class="absolute bottom-6 right-4 z-[400] bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-600 overflow-hidden text-gray-800 dark:text-gray-200 text-xs">
+      <div class="p-2">
+        <button
+          @click="openInOsm"
+          type="button"
+          :title="t('map.editInOsm')"
+          aria-label="Edit in OpenStreetMap"
+          class="w-full text-left text-[12px] font-medium text-[#0f766e] hover:text-[#065f55] transition-colors px-2 py-1.5"
+        >
+          {{ t('map.editInOsm') }}
+        </button>
+      </div>
+    </div>
+
+    <!-- Center Crosshair -->
+    <div class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-[400] pointer-events-none">
+        <div class="w-8 h-8 text-[#FF6600] drop-shadow-lg flex items-center justify-center">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" class="w-full h-full filter drop-shadow-md">
+                <line x1="12" y1="4" x2="12" y2="20" />
+                <line x1="4" y1="12" x2="20" y2="12" />
+                <rect x="10" y="10" width="4" height="4" stroke-width="1" />
+            </svg>
+        </div>
+    </div>
+  </div>
+</template>
+
+<script setup>
+import { ref, computed, watch, onMounted, nextTick } from 'vue';
+import { useI18n } from 'vue-i18n';
+import { LMap, LTileLayer, LRectangle, LMarker, LTooltip } from '@vue-leaflet/vue-leaflet';
+import { Layers } from 'lucide-vue-next';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
+import ElevationOverlay from './ElevationOverlay.vue';
+import { getAdjacentBounds, POSITION_LABELS } from '../../services/surroundingTiles';
+import { computeMetricSelectionBounds, computeUploadedCropBounds } from '../../services/uploadBounds';
+import { CHECKBOX } from '../base/controlStyles.js';
+
+// Fix Leaflet icon assets
+// @ts-ignore
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+  iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+});
+
+// Static options to prevent reactivity issues
+const mapOptions = { scrollWheelZoom: true };
+const { t } = useI18n({ useScope: 'global' });
+
+
+const props = defineProps({
+  center: { type: Object, required: true },
+  zoom: { type: Number, required: true },
+  resolution: { type: [Number, String], required: true },
+  processingMetersPerPixel: { type: [Number, String], default: 1 },
+  isDarkMode: { type: Boolean, default: false },
+  uploadedElevationFile: { type: [Object, Array], default: null },
+  uploadedElevationMeta: { type: Object, default: null },
+  uploadedAreaMode: { type: String, default: 'native' },
+  surroundingTilePositions: { type: Array, default: () => [] },
+  batchGrid: { type: Array, default: () => [] },
+  batchEditable: { type: Boolean, default: false },
+});
+
+const hasBatchGrid = computed(() => props.batchGrid && props.batchGrid.length > 0);
+
+const batchTileColor = (tile) => {
+  switch (tile.status) {
+    case 'processing': return '#3B82F6';
+    case 'completed': return '#10B981';
+    case 'failed': return '#EF4444';
+    default: return '#FF6600';
+  }
+};
+
+const batchTileFillOpacity = (tile) => {
+  switch (tile.status) {
+    case 'processing': return 0.2;
+    case 'completed': return 0.15;
+    case 'failed': return 0.2;
+    default: return 0.05;
+  }
+};
+
+const emit = defineEmits(['move', 'zoom', 'batchTileDrag']);
+
+const mapRef = ref(null);
+const currentCenter = ref(props.center);
+const currentZoom = ref(props.zoom);
+const selectedLayer = ref('osm');
+const showLabels = ref(true);
+const isMovingProgrammatically = ref(false);
+
+const normalizeDatelineLongitude = (lng) => {
+  if (lng > 180) return -180;
+  if (lng < -180) return 180;
+  return lng;
+};
+
+const batchHandleIcon = L.divIcon({
+  className: 'mapng-batch-handle',
+  html: '<div style="width:14px;height:14px;border-radius:9999px;background:#FF6600;border:2px solid white;box-shadow:0 0 0 1px rgba(0,0,0,0.25);"></div>',
+  iconSize: [14, 14],
+  iconAnchor: [7, 7],
+});
+
+const handleBatchTileDrag = (tile, event) => {
+  const marker = event?.target;
+  if (!marker || !tile) return;
+  const latLng = marker.getLatLng();
+  if (!latLng) return;
+  emit('batchTileDrag', {
+    index: tile.index,
+    row: tile.row,
+    col: tile.col,
+    lat: latLng.lat,
+    lng: latLng.lng,
+  });
+};
+
+const osmUrl = computed(() => {
+  return props.isDarkMode 
+    ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
+    : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
+});
+
+const osmAttribution = computed(() => {
+  return props.isDarkMode
+    ? '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+    : '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
+});
+
+// Calculate bounds from output size and processing meters-per-pixel.
+const activeSelectionSizeMeters = computed(() => {
+  const base = Number(props.resolution);
+  const mpp = Number(props.processingMetersPerPixel);
+
+  if (!Number.isFinite(base) || base <= 0) return 1024;
+  if (!Number.isFinite(mpp) || mpp <= 0) return base;
+  return base * mpp;
+});
+
+const bounds = computed(() => {
+  const metricBounds = computeMetricSelectionBounds(currentCenter.value, activeSelectionSizeMeters.value);
+  if (!metricBounds) return null;
+  const nw = L.latLng(metricBounds.north, metricBounds.west);
+  const se = L.latLng(metricBounds.south, metricBounds.east);
+  return L.latLngBounds(nw, se);
+});
+
+const selectionBounds = computed(() => {
+  if (!bounds.value) return null;
+  return {
+    north: bounds.value.getNorthEast().lat,
+    south: bounds.value.getSouthWest().lat,
+    east: bounds.value.getNorthEast().lng,
+    west: bounds.value.getSouthWest().lng,
+  };
+});
+
+const nativeCoverageBounds = computed(() => {
+  const b = props.uploadedElevationMeta?.bounds;
+  if (!props.uploadedElevationFile || !b) return null;
+  if (![b.north, b.south, b.east, b.west].every((v) => Number.isFinite(v))) return null;
+  return {
+    north: b.north,
+    south: b.south,
+    east: b.east,
+    west: b.west,
+  };
+});
+
+const showUploadedCoverageBounds = computed(() => !!nativeCoverageBounds.value);
+
+const uploadedCoverageTiles = computed(() => {
+  const tiles = props.uploadedElevationMeta?.zipTileBounds;
+  if (!Array.isArray(tiles)) return [];
+  return tiles.filter((tile) => {
+    const b = tile?.bounds;
+    return b && [b.north, b.south, b.east, b.west].every((value) => Number.isFinite(value));
+  });
+});
+
+const uploadedMissingTiles = computed(() => {
+  const tiles = props.uploadedElevationMeta?.zipMissingTileBounds;
+  if (!Array.isArray(tiles)) return [];
+  return tiles.filter((tile) => {
+    const b = tile?.bounds;
+    return b && [b.north, b.south, b.east, b.west].every((value) => Number.isFinite(value));
+  });
+});
+
+const showUploadedTileZones = computed(() => {
+  if (!showUploadedCoverageBounds.value) return false;
+  const format = String(props.uploadedElevationMeta?.sourceFormat || '').toLowerCase();
+  return format === 'gml-zip' && uploadedCoverageTiles.value.length > 1;
+});
+
+const uploadedCropBounds = computed(() => {
+  if (!nativeCoverageBounds.value || props.uploadedAreaMode !== 'crop') return null;
+  return computeUploadedCropBounds(currentCenter.value, activeSelectionSizeMeters.value, nativeCoverageBounds.value);
+});
+
+// Area the elevation minimap stays fitted to: the batch grid extent when a
+// grid is shown, otherwise the crop box (BYOD crop mode) or the selection box.
+const elevationOverlayBounds = computed(() => {
+  if (hasBatchGrid.value) {
+    let north = -Infinity;
+    let south = Infinity;
+    let east = -Infinity;
+    let west = Infinity;
+    for (const tile of props.batchGrid) {
+      const b = tile?.bounds;
+      if (!b) continue;
+      north = Math.max(north, b.north);
+      south = Math.min(south, b.south);
+      east = Math.max(east, b.east);
+      west = Math.min(west, b.west);
+    }
+    if ([north, south, east, west].every((v) => Number.isFinite(v))) {
+      return { north, south, east, west };
+    }
+  }
+  return uploadedCropBounds.value || selectionBounds.value;
+});
+
+// Compute surrounding tile bounding boxes from current center + resolution
+const surroundingBounds = computed(() => {
+  if (!props.surroundingTilePositions?.length) return [];
+
+  const center = currentCenter.value;
+  const sizeMeters = activeSelectionSizeMeters.value;
+  
+  const metersPerDegLat = 111320;
+  const metersPerDegLng = 111320 * Math.cos(center.lat * Math.PI / 180);
+  
+  const latSpan = sizeMeters / metersPerDegLat;
+  const lngSpan = sizeMeters / metersPerDegLng;
+  
+  const centerBounds = {
+    north: center.lat + latSpan / 2,
+    south: center.lat - latSpan / 2,
+    east:  center.lng + lngSpan / 2,
+    west:  center.lng - lngSpan / 2,
+  };
+
+  return props.surroundingTilePositions.map(pos => ({
+    key: pos,
+    label: POSITION_LABELS[pos],
+    ...getAdjacentBounds(centerBounds, pos),
+  }));
+});
+
+// Handle map move
+const handleMove = () => {
+  if (isMovingProgrammatically.value) return;
+  if (!mapRef.value?.leafletObject) return;
+  const map = mapRef.value.leafletObject;
+  const c = map.getCenter();
+
+  const normalizedLng = normalizeDatelineLongitude(c.lng);
+  if (normalizedLng !== c.lng) {
+    map.setView([c.lat, normalizedLng], map.getZoom(), { animate: false });
+  }
+
+  currentCenter.value = { lat: c.lat, lng: normalizedLng };
+  emit('move', currentCenter.value);
+};
+
+// Handle map zoom
+const handleZoom = () => {
+  if (!mapRef.value?.leafletObject) return;
+  const map = mapRef.value.leafletObject;
+  currentZoom.value = map.getZoom();
+  emit('zoom', currentZoom.value);
+};
+
+const onMoveEnd = () => {
+    isMovingProgrammatically.value = false;
+    // Ensure we sync final position
+    if (mapRef.value?.leafletObject) {
+        const map = mapRef.value.leafletObject;
+        const c = map.getCenter();
+        currentCenter.value = { lat: c.lat, lng: normalizeDatelineLongitude(c.lng) };
+        emit('move', currentCenter.value);
+    }
+};
+
+const onDragStart = () => {
+    isMovingProgrammatically.value = false;
+};
+
+// Open current view in OpenStreetMap iD editor (new tab)
+const openInOsm = () => {
+  try {
+    let center = props.center;
+    let zoom = props.zoom;
+    if (mapRef.value?.leafletObject) {
+      const map = mapRef.value.leafletObject;
+      const c = map.getCenter();
+      center = { lat: c.lat, lng: c.lng };
+      zoom = map.getZoom();
+    } else {
+      center = currentCenter.value || props.center;
+      zoom = currentZoom.value || props.zoom;
+    }
+
+    const url = `https://www.openstreetmap.org/edit?editor=id#map=${zoom}/${center.lat}/${center.lng}`;
+    window.open(url, '_blank', 'noopener,noreferrer');
+  } catch (err) {
+    console.warn('openInOsm failed', err);
+    const url = `https://www.openstreetmap.org/?mlat=${props.center.lat}&mlon=${props.center.lng}#map=${props.zoom}/${props.center.lat}/${props.center.lng}`;
+    window.open(url, '_blank', 'noopener,noreferrer');
+  }
+};
+
+// Watch for external center changes (e.g., from AI search)
+watch(() => props.center, (newCenter) => {
+  const dist = Math.sqrt(
+    Math.pow(currentCenter.value.lat - newCenter.lat, 2) + 
+    Math.pow(currentCenter.value.lng - newCenter.lng, 2)
+  );
+  
+  // Only move if significantly different to avoid fighting user drag
+  if (dist > 0.0001 && mapRef.value?.leafletObject) {
+    const map = mapRef.value.leafletObject;
+    isMovingProgrammatically.value = true;
+    
+    map.off('moveend', onMoveEnd);
+    map.off('dragstart', onDragStart);
+    
+    map.on('moveend', onMoveEnd);
+    map.on('dragstart', onDragStart);
+    
+    map.setView([newCenter.lat, newCenter.lng], props.zoom, { animate: true });
+    currentCenter.value = newCenter;
+  }
+}, { deep: true });
+
+// Watch for zoom changes
+watch(() => props.zoom, (newZoom) => {
+  if (newZoom !== currentZoom.value && mapRef.value?.leafletObject) {
+    const map = mapRef.value.leafletObject;
+    map.setZoom(newZoom);
+    currentZoom.value = newZoom;
+  }
+});
+
+// Fix for initial load centering
+onMounted(() => {
+  nextTick(() => {
+    setTimeout(() => {
+      if (mapRef.value?.leafletObject) {
+        const map = mapRef.value.leafletObject;
+        map.invalidateSize();
+        map.setView([props.center.lat, props.center.lng], props.zoom, { animate: false });
+      }
+    }, 200);
+  });
+});
+</script>
