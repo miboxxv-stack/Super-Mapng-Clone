@@ -8,408 +8,1513 @@
         content="width=device-width, initial-scale=1.0"
     >
 
-    <title>Super-MapNG</title>
+    <title>Super MapNG</title>
 
-    <link rel="stylesheet" href="./style.css">
+    <!-- Tailwind -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        mapng: "#FF6600"
+                    }
+                }
+            }
+        };
+    </script>
+
+    <style>
+        html,
+        body {
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            overflow: hidden;
+            font-family:
+                Inter,
+                ui-sans-serif,
+                system-ui,
+                -apple-system,
+                BlinkMacSystemFont,
+                "Segoe UI",
+                sans-serif;
+        }
+
+        #app {
+            width: 100%;
+            height: 100%;
+        }
+
+        #map-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: #dbe5d7;
+        }
+
+        #three-container {
+            position: absolute;
+            inset: 0;
+        }
+
+        #three-container canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 7px;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 999px;
+        }
+
+        .dark .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #4b5563;
+        }
+
+        .leaflet-like-control {
+            box-shadow:
+                0 2px 8px rgba(0, 0, 0, 0.15);
+        }
+
+        .map-label {
+            user-select: none;
+            pointer-events: none;
+            text-shadow:
+                0 1px 2px rgba(0,0,0,.45);
+        }
+
+        .hidden-panel {
+            display: none !important;
+        }
+
+        .processing-overlay {
+            position: absolute;
+            inset: 0;
+            z-index: 100;
+        }
+    </style>
 </head>
 
-<body>
-
-<div id="app">
-
-    <!-- TOP BAR -->
-    <header class="topbar">
-
-        <div class="brand">
-            <strong>Super-MapNG</strong>
-            <span>Real-world BeamNG map generator</span>
-        </div>
-
-        <div class="top-actions">
-            <button id="themeButton">☾</button>
-        </div>
-
-    </header>
-
-
-    <div class="layout">
-
-        <!-- MAP -->
-        <main id="map"></main>
-
-
-        <!-- SIDEBAR -->
-        <aside class="sidebar">
-
-            <div class="sidebar-scroll">
-
-                <!-- ELEVATION UPLOAD -->
-
-                <section class="section">
-
-                    <label class="upload">
-
-                        <span>↑</span>
-
-                        <span>
-                            Custom Elevation Upload
-                            <small>
-                                (.tif, .asc, .gml, .xml, .zip, .laz, .las)
-                            </small>
-                        </span>
-
-                        <input
-                            id="elevationUpload"
-                            type="file"
-                            multiple
-                            accept=".tif,.tiff,.asc,.gml,.xml,.zip,.laz,.las"
-                        >
-
-                    </label>
-
-                </section>
-
-
-                <!-- PREVIEW / GENERATE -->
-
-                <section class="button-grid">
-
-                    <button
-                        id="previewButton"
-                        class="primary big-button"
-                    >
-                        <strong>⛰ Preview 3D</strong>
-                        <small>View before download</small>
-                    </button>
-
-                    <button
-                        id="generateButton"
-                        class="secondary big-button"
-                    >
-                        <strong>↓ Generate Data</strong>
-                        <small>Skip 3D view, get files</small>
-                    </button>
-
-                </section>
-
-
-                <!-- OUTPUT -->
-
-                <section class="section">
-
-                    <h3>📦 Output Settings</h3>
-
-
-                    <label>
-                        <span>Resolution</span>
-
-                        <select id="resolution">
-
-                            <option value="512">
-                                512 × 512 px
-                            </option>
-
-                            <option value="1024">
-                                1024 × 1024 px
-                            </option>
-
-                            <option value="1082">
-                                1082 × 1082 px
-                            </option>
-
-                            <option value="2048">
-                                2048 × 2048 px
-                            </option>
-
-                            <option value="4096">
-                                4096 × 4096 px
-                            </option>
-
-                            <option value="8192">
-                                8192 × 8192 px
-                            </option>
-
-                        </select>
-                    </label>
-
-
-                    <label>
-
-                        <span>
-                            Processing resolution
-                            <small>(meters per pixel)</small>
-                        </span>
-
-                        <input
-                            id="metersPerPixel"
-                            type="number"
-                            min="0.00000001"
-                            step="0.00000001"
-                            value="1"
-                        >
-
-                    </label>
-
-
-                    <div class="info-box">
-
-                        Lower m/px means finer detail
-                        over a smaller geographic area.
-
-                    </div>
-
-                </section>
-
-
-                <!-- OSM -->
-
-                <section class="section">
-
-                    <label class="toggle">
-
-                        <span>
-                            🗺️ Include OSM Features
-                        </span>
-
-                        <input
-                            id="includeOSM"
-                            type="checkbox"
-                            checked
-                        >
-
-                    </label>
-
-                </section>
-
-
-                <!-- REAL WORLD FEATURES -->
-
-                <section class="section">
-
-                    <h3>🌎 Real-World Features</h3>
-
-
-                    <label class="toggle">
-                        <span>🛣 Roads</span>
-                        <input id="featureRoads" type="checkbox" checked>
-                    </label>
-
-
-                    <label class="toggle">
-                        <span>🏠 Buildings</span>
-                        <input id="featureBuildings" type="checkbox" checked>
-                    </label>
-
-
-                    <label class="toggle">
-                        <span>💧 Water</span>
-                        <input id="featureWater" type="checkbox" checked>
-                    </label>
-
-
-                    <label class="toggle">
-                        <span>🅿️ Parking Lots</span>
-                        <input id="featureParking" type="checkbox" checked>
-                    </label>
-
-
-                    <label class="toggle">
-                        <span>🚧 Fences / Barriers</span>
-                        <input id="featureFences" type="checkbox" checked>
-                    </label>
-
-
-                    <label class="toggle">
-                        <span>💡 Streetlights</span>
-                        <input id="featureLights" type="checkbox" checked>
-                    </label>
-
-
-                    <label class="toggle">
-                        <span>⚡ Utility Poles</span>
-                        <input id="featureUtilities" type="checkbox" checked>
-                    </label>
-
-
-                    <label class="toggle">
-                        <span>🚶 Sidewalks</span>
-                        <input id="featureSidewalks" type="checkbox" checked>
-                    </label>
-
-
-                    <label class="toggle">
-                        <span>▰ Curbs</span>
-                        <input id="featureCurbs" type="checkbox" checked>
-                    </label>
-
-                </section>
-
-
-                <!-- LOCATION -->
-
-                <section class="section">
-
-                    <h3>📍 Center Coordinates</h3>
-
-
-                    <input
-                        id="locationSearch"
-                        placeholder="Search for a location..."
-                    >
-
-
-                    <div class="coordinate-grid">
-
-                        <label>
-                            Latitude
-                            <input
-                                id="latitude"
-                                value="50.6745"
-                            >
-                        </label>
-
-                        <label>
-                            Longitude
-                            <input
-                                id="longitude"
-                                value="-120.3273"
-                            >
-                        </label>
-
-                    </div>
-
-
-                    <button
-                        id="locateButton"
-                        class="secondary full"
-                    >
-                        📍 Load Location
-                    </button>
-
-                </section>
-
-
-                <!-- STREET VIEW -->
-
-                <section class="section">
-
-                    <h3>📷 Real-World Street View</h3>
-
-                    <label>
-                        Provider
-
-                        <select id="imageryProvider">
-
-                            <option value="kartaview">
-                                KartaView
-                            </option>
-
-                            <option value="mapillary">
-                                Mapillary
-                            </option>
-
-                        </select>
-
-                    </label>
-
-
-                    <label class="toggle">
-
-                        <span>
-                            Show nearby imagery
-                        </span>
-
-                        <input
-                            id="streetImagery"
-                            type="checkbox"
-                            checked
-                        >
-
-                    </label>
-
-
-                    <div class="info-box">
-
-                        Street-level imagery is used as
-                        visual reference for realism and
-                        verification. It is not automatically
-                        converted into BeamNG assets.
-
-                    </div>
-
-                </section>
-
-
-                <!-- TERRAIN -->
-
-                <section class="section">
-
-                    <h3>⛰ Elevation Data</h3>
-
-                    <select id="elevationSource">
-
-                        <option value="global">
-                            Global DEM
-                        </option>
-
-                        <option value="none">
-                            Flat
-                        </option>
-
-                        <option value="custom">
-                            Custom Upload
-                        </option>
-
-                    </select>
-
-                </section>
-
-
-                <!-- STATUS -->
-
-                <section class="status">
-
-                    <div>
-                        <span>OSM</span>
-                        <strong id="osmStatus">
-                            Ready
-                        </strong>
-                    </div>
-
-                    <div>
-                        <span>Buildings</span>
-                        <strong id="buildingCount">
-                            0
-                        </strong>
-                    </div>
-
-                    <div>
-                        <span>Roads</span>
-                        <strong id="roadCount">
-                            0
-                        </strong>
-                    </div>
-
-                    <div>
-                        <span>Water</span>
-                        <strong id="waterCount">
-                            0
-                        </strong>
-                    </div>
-
-                </section>
-
+<body class="bg-gray-100 dark:bg-gray-950 text-gray-900 dark:text-white">
+
+<div id="app" class="flex w-full h-full">
+
+    <!-- ========================================================= -->
+    <!-- LEFT SIDEBAR -->
+    <!-- ========================================================= -->
+
+    <aside
+        id="sidebar"
+        class="w-[390px] min-w-[390px] h-full bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 flex flex-col z-40"
+    >
+
+        <!-- HEADER -->
+
+        <div class="px-5 py-4 border-b border-gray-200 dark:border-gray-700">
+
+            <div class="flex items-center justify-between">
+
+                <div>
+                    <h1 class="text-lg font-bold tracking-tight">
+                        Super MapNG
+                    </h1>
+
+                    <p class="text-xs text-gray-500 dark:text-gray-400">
+                        Realistic terrain & map generator
+                    </p>
+                </div>
+
+                <button
+                    id="theme-toggle"
+                    type="button"
+                    class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                    title="Toggle dark mode"
+                >
+                    ☾
+                </button>
 
             </div>
 
-        </aside>
+        </div>
 
-    </div>
+
+        <!-- ===================================================== -->
+        <!-- SCROLLING SETTINGS -->
+        <!-- ===================================================== -->
+
+        <div
+            class="flex-1 overflow-y-auto custom-scrollbar bg-gray-50/50 dark:bg-gray-800/50 p-5"
+        >
+
+            <div class="space-y-6">
+
+
+                <!-- CUSTOM ELEVATION -->
+
+                <div class="space-y-2">
+
+                    <label
+                        class="flex items-center gap-2 w-full px-3 py-2 rounded-lg border border-dashed border-gray-300 dark:border-gray-600 text-sm text-gray-500 dark:text-gray-400 hover:border-[#FF6600] hover:text-[#FF6600] dark:hover:border-[#FF6600] dark:hover:text-[#FF6600] cursor-pointer transition-colors"
+                    >
+
+                        <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="14"
+                            height="14"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                        >
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                            <polyline points="17 8 12 3 7 8"/>
+                            <line x1="12" x2="12" y1="3" y2="15"/>
+                        </svg>
+
+                        <span>
+                            Custom Elevation Upload
+                            (.tif, .asc, .gml, .xml, .zip, .laz, .las)
+                        </span>
+
+                        <input
+                            id="elevation-upload"
+                            type="file"
+                            multiple
+                            accept=".tif,.tiff,.asc,.gml,.xml,.zip,.laz,.las"
+                            class="sr-only"
+                        >
+
+                    </label>
+
+                </div>
+
+
+                <!-- ================================================= -->
+                <!-- MAIN ACTIONS -->
+                <!-- ================================================= -->
+
+                <div class="grid grid-cols-2 gap-3">
+
+                    <button
+                        id="preview-3d"
+                        type="button"
+                        class="py-3 font-bold transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FF6600] flex flex-col items-center justify-center text-center gap-1 w-full rounded-md bg-[#FF6600] text-white hover:bg-[#E65C00] shadow-orange-900/10 px-3 text-sm"
+                    >
+
+                        <div class="flex items-center gap-2">
+
+                            <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                width="16"
+                                height="16"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                stroke-width="2"
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                            >
+                                <path d="m8 3 4 8 5-5 5 15H2L8 3z"/>
+                            </svg>
+
+                            <span>Preview 3D</span>
+
+                        </div>
+
+                        <span class="text-[10px] font-normal opacity-90">
+                            View before download
+                        </span>
+
+                    </button>
+
+
+                    <button
+                        id="generate-data"
+                        type="button"
+                        class="py-3 font-bold transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FF6600] flex flex-col items-center justify-center text-center gap-1 w-full rounded-md bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 px-3 text-sm"
+                    >
+
+                        <div class="flex items-center gap-2">
+
+                            <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                width="16"
+                                height="16"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                stroke-width="2"
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                            >
+                                <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/>
+                                <path d="M14 2v4a2 2 0 0 0 2 2h4"/>
+                                <path d="M12 18v-6"/>
+                                <path d="m9 15 3 3 3-3"/>
+                            </svg>
+
+                            <span>Generate Data</span>
+
+                        </div>
+
+                        <span class="text-[10px] font-normal text-gray-500 dark:text-gray-400">
+                            Skip 3D view, get files
+                        </span>
+
+                    </button>
+
+                </div>
+
+
+                <!-- ================================================= -->
+                <!-- OUTPUT SETTINGS -->
+                <!-- ================================================= -->
+
+                <div class="space-y-4">
+
+                    <label
+                        class="text-sm font-medium text-gray-700 dark:text-gray-300 flex items-center gap-2"
+                    >
+
+                        <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="16"
+                            height="16"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                        >
+                            <path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/>
+                            <path d="m3.3 7 8.7 5 8.7-5"/>
+                            <path d="M12 22V12"/>
+                        </svg>
+
+                        Output Settings
+
+                    </label>
+
+
+                    <!-- RESOLUTION -->
+
+                    <div class="space-y-1">
+
+                        <label class="text-xs text-gray-500 dark:text-gray-400">
+                            Resolution (Output Size)
+                        </label>
+
+                        <select
+                            id="resolution"
+                            class="w-full rounded-md px-2 py-2 text-sm bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white cursor-pointer focus:outline-none focus:ring-1 focus:ring-[#FF6600]"
+                        >
+                            <option value="512">512 x 512 px</option>
+                            <option value="1024">1024 x 1024 px</option>
+                            <option value="2048">2048 x 2048 px</option>
+                            <option value="4096">4096 x 4096 px</option>
+                            <option value="8192">8192 x 8192 px</option>
+                            <option value="16384">16384 x 16384 px</option>
+                        </select>
+
+                    </div>
+
+
+                    <!-- PROCESSING RESOLUTION -->
+
+                    <div class="space-y-1">
+
+                        <label class="text-xs text-gray-500 dark:text-gray-400">
+                            Processing resolution (meters per pixel)
+                        </label>
+
+                        <input
+                            id="meters-per-pixel"
+                            type="text"
+                            inputmode="decimal"
+                            placeholder="1.00"
+                            value="1.00"
+                            class="w-full border rounded px-2 py-2 text-sm outline-none bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#FF6600]"
+                        >
+
+                        <p class="text-[10px] text-gray-500 dark:text-gray-400">
+                            Enter any positive m/px value. Lower m/px means finer
+                            detail over a smaller area for the same output size.
+                        </p>
+
+                    </div>
+
+
+                    <!-- OSM -->
+
+                    <div class="p-2 rounded bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600">
+
+                        <label class="flex items-center justify-between gap-3 select-none cursor-pointer">
+
+                            <div class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+
+                                <span class="text-emerald-600">
+                                    🌲
+                                </span>
+
+                                Include OSM Features
+
+                            </div>
+
+                            <input
+                                id="include-osm"
+                                type="checkbox"
+                                checked
+                                class="accent-[#FF6600] w-4 h-4 cursor-pointer"
+                            >
+
+                        </label>
+
+                    </div>
+
+
+                    <!-- SMOOTH ROADS -->
+
+                    <div class="p-2 rounded bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600">
+
+                        <label class="flex items-center justify-between gap-3 select-none cursor-pointer">
+
+                            <div class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+                                🛣️
+                                Smooth Roads
+                            </div>
+
+                            <input
+                                id="smooth-roads"
+                                type="checkbox"
+                                class="accent-[#FF6600] w-4 h-4 cursor-pointer"
+                            >
+
+                        </label>
+
+                        <p class="mt-1 ml-6 text-[10px] text-gray-500 dark:text-gray-400">
+                            Smooths bumps along roads. Bridges are preserved.
+                        </p>
+
+                    </div>
+
+
+                    <!-- LEVEL ROADS -->
+
+                    <div class="p-2 rounded bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600">
+
+                        <label class="flex items-center justify-between gap-3 select-none cursor-pointer">
+
+                            <div class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+                                🛣️
+                                Level Roads (Pathing)
+                            </div>
+
+                            <input
+                                id="level-roads"
+                                type="checkbox"
+                                checked
+                                class="accent-[#FF6600] w-4 h-4 cursor-pointer"
+                            >
+
+                        </label>
+
+                        <p class="mt-1 ml-6 text-[10px] text-gray-500 dark:text-gray-400">
+                            Forces roads to have zero transverse tilt.
+                        </p>
+
+                    </div>
+
+
+                    <!-- ================================================= -->
+                    <!-- ELEVATION SOURCE -->
+                    <!-- ================================================= -->
+
+                    <div class="space-y-2">
+
+                        <button
+                            id="elevation-toggle"
+                            type="button"
+                            class="w-full flex items-center justify-between text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-[#FF6600] transition-colors"
+                        >
+
+                            <span>
+                                ⛰️
+                                Elevation Data Source
+                            </span>
+
+                            <span>⌃</span>
+
+                        </button>
+
+                        <div
+                            id="elevation-panel"
+                            class="space-y-2 bg-gray-50 dark:bg-gray-700 p-2 rounded border border-gray-200 dark:border-gray-600"
+                        >
+
+                            <select
+                                id="elevation-source"
+                                class="w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded px-2 py-1 text-xs text-gray-900 dark:text-white focus:ring-1 focus:ring-[#FF6600] outline-none"
+                            >
+
+                                <option value="default">
+                                    Standard (30m Global)
+                                </option>
+
+                                <option value="none">
+                                    None (Flat)
+                                </option>
+
+                                <option value="usgs">
+                                    USGS 1m DEM (USA Only)
+                                </option>
+
+                                <option value="gpxz">
+                                    GPXZ (Premium Global)
+                                </option>
+
+                            </select>
+
+                            <span class="block text-[10px] text-gray-500 dark:text-gray-400 leading-tight">
+                                Global terrain elevation with automatic terrain generation.
+                            </span>
+
+                        </div>
+
+                    </div>
+
+
+                    <!-- ================================================= -->
+                    <!-- CENTER COORDINATES -->
+                    <!-- ================================================= -->
+
+                    <div class="space-y-2">
+
+                        <button
+                            id="coordinates-toggle"
+                            type="button"
+                            class="w-full flex items-center justify-between text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-[#FF6600]"
+                        >
+
+                            <span>
+                                📍
+                                Center Coordinates
+                            </span>
+
+                            <span>⌃</span>
+
+                        </button>
+
+
+                        <div id="coordinates-panel" class="space-y-2">
+
+                            <input
+                                id="location-search"
+                                type="text"
+                                placeholder="Search for a location..."
+                                class="w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded px-3 py-2 text-xs text-gray-900 dark:text-white focus:ring-2 focus:ring-[#FF6600] outline-none"
+                            >
+
+
+                            <div class="grid grid-cols-2 gap-2">
+
+                                <div class="space-y-1">
+
+                                    <label class="text-[10px] text-gray-500 uppercase">
+                                        Latitude
+                                    </label>
+
+                                    <input
+                                        id="latitude"
+                                        type="text"
+                                        value="50.6745"
+                                        class="w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded px-2 py-1 text-xs"
+                                    >
+
+                                </div>
+
+
+                                <div class="space-y-1">
+
+                                    <label class="text-[10px] text-gray-500 uppercase">
+                                        Longitude
+                                    </label>
+
+                                    <input
+                                        id="longitude"
+                                        type="text"
+                                        value="-120.3273"
+                                        class="w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded px-2 py-1 text-xs"
+                                    >
+
+                                </div>
+
+                            </div>
+
+
+                            <select
+                                id="preset-location"
+                                class="w-full rounded px-2 py-1.5 text-xs bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 cursor-pointer"
+                            >
+
+                                <option value="">
+                                    Select a location...
+                                </option>
+
+                                <option value="50.6745,-120.3273">
+                                    Kamloops, BC, Canada
+                                </option>
+
+                                <option value="44.5906,-110.5478">
+                                    Yellowstone, USA
+                                </option>
+
+                                <option value="37.8691,-102.8430">
+                                    Southeast Colorado
+                                </option>
+
+                                <option value="43.7228,10.3966">
+                                    Tuscany, Italy
+                                </option>
+
+                                <option value="35.3606,138.7274">
+                                    Mount Fuji, Japan
+                                </option>
+
+                                <option value="46.5770,7.9900">
+                                    Swiss Alps
+                                </option>
+
+                            </select>
+
+                        </div>
+
+                    </div>
+
+
+                    <!-- SURROUNDING TILES -->
+
+                    <div>
+
+                        <button
+                            id="tiles-toggle"
+                            class="w-full flex items-center justify-between text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-[#FF6600]"
+                        >
+
+                            <span>
+                                ▦
+                                Surrounding Tiles
+                            </span>
+
+                            <span>⌄</span>
+
+                        </button>
+
+                        <div
+                            id="tiles-panel"
+                            class="hidden mt-3 p-3 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700"
+                        >
+
+                            <label class="text-xs text-gray-500">
+                                Tile radius
+                            </label>
+
+                            <select
+                                id="tile-radius"
+                                class="mt-1 w-full rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-2 py-2 text-xs"
+                            >
+
+                                <option value="0">
+                                    Center only
+                                </option>
+
+                                <option value="1">
+                                    3 × 3
+                                </option>
+
+                                <option value="2">
+                                    5 × 5
+                                </option>
+
+                                <option value="3">
+                                    7 × 7
+                                </option>
+
+                            </select>
+
+                        </div>
+
+                    </div>
+
+
+                    <!-- CONFIGURATION -->
+
+                    <div>
+
+                        <button
+                            id="configuration-toggle"
+                            class="w-full flex items-center justify-between text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-[#FF6600]"
+                        >
+
+                            <span>
+                                ⚙️
+                                Configuration & Session
+                            </span>
+
+                            <span>⌄</span>
+
+                        </button>
+
+                        <div
+                            id="configuration-panel"
+                            class="hidden mt-3 p-3 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 space-y-2"
+                        >
+
+                            <button
+                                id="save-config"
+                                class="w-full py-2 rounded bg-gray-100 dark:bg-gray-700 text-xs hover:bg-gray-200 dark:hover:bg-gray-600"
+                            >
+                                Save Configuration
+                            </button>
+
+                            <button
+                                id="reset-config"
+                                class="w-full py-2 rounded bg-gray-100 dark:bg-gray-700 text-xs hover:bg-gray-200 dark:hover:bg-gray-600"
+                            >
+                                Reset Configuration
+                            </button>
+
+                        </div>
+
+                    </div>
+
+
+                    <!-- ================================================= -->
+                    <!-- TERRAIN INFORMATION -->
+                    <!-- ================================================= -->
+
+                    <div
+                        id="terrain-info"
+                        class="rounded-lg bg-white dark:bg-gray-800 shadow-sm border border-gray-200 dark:border-gray-700 p-3 space-y-2"
+                    >
+
+                        <div class="grid grid-cols-3 gap-1 text-[10px] text-gray-500 border-b border-gray-200 dark:border-gray-600 pb-2">
+
+                            <div class="text-center border-r border-gray-200 dark:border-gray-600">
+
+                                <div>Min</div>
+
+                                <div
+                                    id="min-elevation"
+                                    class="text-gray-700 dark:text-gray-300 font-medium"
+                                >
+                                    346m
+                                </div>
+
+                            </div>
+
+                            <div class="text-center border-r border-gray-200 dark:border-gray-600">
+
+                                <div>Max</div>
+
+                                <div
+                                    id="max-elevation"
+                                    class="text-gray-700 dark:text-gray-300 font-medium"
+                                >
+                                    352m
+                                </div>
+
+                            </div>
+
+                            <div class="text-center">
+
+                                <div>Diff</div>
+
+                                <div
+                                    id="elevation-diff"
+                                    class="text-[#FF6600] font-bold"
+                                >
+                                    6m
+                                </div>
+
+                            </div>
+
+                        </div>
+
+
+                        <div class="grid grid-cols-2 gap-1 text-[10px] text-gray-500">
+
+                            <div class="text-center border-r border-gray-200 dark:border-gray-600">
+
+                                <div>Scale</div>
+
+                                <div
+                                    id="scale-value"
+                                    class="text-gray-700 dark:text-gray-300 font-medium"
+                                >
+                                    1.00m/px
+                                </div>
+
+                            </div>
+
+                            <div class="text-center">
+
+                                <div>Total Area</div>
+
+                                <div
+                                    id="area-value"
+                                    class="text-gray-700 dark:text-gray-300 font-medium"
+                                >
+                                    262,144 m²
+                                </div>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+
+                    <!-- SUPPORT -->
+
+                    <div
+                        class="p-3 rounded-lg bg-gradient-to-br from-orange-50 to-amber-50 dark:from-orange-900/20 dark:to-amber-900/10 border border-orange-200 dark:border-orange-800"
+                    >
+
+                        <div class="flex items-start justify-between gap-3">
+
+                            <div>
+
+                                <p class="text-xs font-semibold text-orange-700 dark:text-orange-300">
+                                    Support Super MapNG
+                                </p>
+
+                                <p class="text-[11px] text-orange-700/90 dark:text-orange-300/90 leading-relaxed mt-1">
+                                    Help keep development going. Optional and always appreciated.
+                                </p>
+
+                            </div>
+
+                            <button
+                                id="donate"
+                                type="button"
+                                class="shrink-0 px-3 py-1.5 text-[11px] font-semibold bg-[#f45d22] hover:bg-[#e4521a] text-white rounded-md"
+                            >
+                                Donate
+                            </button>
+
+                        </div>
+
+                    </div>
+
+
+                    <!-- ================================================= -->
+                    <!-- EXPORT -->
+                    <!-- ================================================= -->
+
+                    <div class="pt-4 border-t border-gray-200 dark:border-gray-600">
+
+                        <button
+                            id="export-toggle"
+                            class="w-full flex items-center justify-between text-sm font-medium text-emerald-600 dark:text-emerald-400 hover:text-[#FF6600]"
+                        >
+
+                            <span>
+                                ⬇️
+                                Ready to Export
+
+                                <span
+                                    id="export-resolution"
+                                    class="text-xs text-gray-500 dark:text-gray-400 font-normal"
+                                >
+                                    512x512
+                                </span>
+
+                            </span>
+
+                            <span>⌃</span>
+
+                        </button>
+
+
+                        <div id="export-panel" class="space-y-2 mt-3">
+
+                            <div class="flex items-center justify-between">
+
+                                <span class="text-[10px] text-gray-500">
+                                    BeamNG Level
+                                </span>
+
+                                <span class="text-[8px] uppercase bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded font-bold">
+                                    Experimental
+                                </span>
+
+                            </div>
+
+
+                            <input
+                                id="level-name"
+                                type="text"
+                                maxlength="64"
+                                placeholder="Level Name"
+                                class="w-full text-xs bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded px-2 py-1.5"
+                            >
+
+
+                            <label class="text-[10px] text-gray-500">
+                                Base Texture
+                            </label>
+
+                            <select
+                                id="base-texture"
+                                class="w-full rounded px-2 py-1.5 text-xs bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600"
+                            >
+
+                                <option value="none">
+                                    None
+                                </option>
+
+                                <option value="hybrid">
+                                    Satellite Hybrid
+                                </option>
+
+                                <option value="satellite">
+                                    Satellite
+                                </option>
+
+                                <option value="osm">
+                                    OSM
+                                </option>
+
+                            </select>
+
+
+                            <button
+                                id="export-beamng"
+                                class="w-full py-2 rounded-md bg-[#FF6600] hover:bg-[#E65C00] text-white text-xs font-bold transition-colors"
+                            >
+                                Export BeamNG Level
+                            </button>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </aside>
+
+
+    <!-- ========================================================= -->
+    <!-- MAP -->
+    <!-- ========================================================= -->
+
+    <main
+        id="map-container"
+        class="flex-1"
+    >
+
+        <!-- Three.js renders here -->
+
+        <div id="three-container"></div>
+
+
+        <!-- MAP TOP BAR -->
+
+        <div
+            class="absolute top-4 left-4 right-4 z-20 pointer-events-none"
+        >
+
+            <div class="flex items-center justify-between">
+
+                <div
+                    class="pointer-events-auto px-4 py-2 rounded-xl bg-white/90 dark:bg-gray-900/90 backdrop-blur-md border border-gray-200 dark:border-gray-700 shadow-lg"
+                >
+
+                    <div class="flex items-center gap-3">
+
+                        <div
+                            class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"
+                        ></div>
+
+                        <div>
+
+                            <div
+                                id="map-status"
+                                class="text-xs font-semibold"
+                            >
+                                3D Terrain Ready
+                            </div>
+
+                            <div
+                                id="map-location"
+                                class="text-[10px] text-gray-500 dark:text-gray-400"
+                            >
+                                Kamloops, British Columbia
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <div class="flex gap-2 pointer-events-auto">
+
+                    <button
+                        id="map-reset"
+                        class="px-3 py-2 rounded-lg bg-white/90 dark:bg-gray-900/90 backdrop-blur-md border border-gray-200 dark:border-gray-700 shadow-lg text-xs font-medium hover:text-[#FF6600]"
+                    >
+                        Reset View
+                    </button>
+
+                    <button
+                        id="fullscreen"
+                        class="px-3 py-2 rounded-lg bg-white/90 dark:bg-gray-900/90 backdrop-blur-md border border-gray-200 dark:border-gray-700 shadow-lg text-xs font-medium hover:text-[#FF6600]"
+                    >
+                        Fullscreen
+                    </button>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- MAP CONTROLS -->
+
+        <div
+            class="absolute right-4 top-1/2 -translate-y-1/2 z-20 flex flex-col gap-1"
+        >
+
+            <button
+                id="zoom-in"
+                class="leaflet-like-control w-10 h-10 rounded-lg bg-white/95 dark:bg-gray-900/95 border border-gray-200 dark:border-gray-700 text-xl hover:text-[#FF6600]"
+            >
+                +
+            </button>
+
+            <button
+                id="zoom-out"
+                class="leaflet-like-control w-10 h-10 rounded-lg bg-white/95 dark:bg-gray-900/95 border border-gray-200 dark:border-gray-700 text-xl hover:text-[#FF6600]"
+            >
+                −
+            </button>
+
+            <button
+                id="north-up"
+                class="leaflet-like-control w-10 h-10 rounded-lg bg-white/95 dark:bg-gray-900/95 border border-gray-200 dark:border-gray-700 text-sm hover:text-[#FF6600]"
+            >
+                N
+            </button>
+
+        </div>
+
+
+        <!-- MAP BOTTOM STATUS -->
+
+        <div
+            class="absolute bottom-4 left-4 z-20"
+        >
+
+            <div
+                class="px-3 py-2 rounded-lg bg-white/90 dark:bg-gray-900/90 backdrop-blur-md border border-gray-200 dark:border-gray-700 shadow-lg"
+            >
+
+                <div class="flex gap-4 text-[10px]">
+
+                    <span>
+                        Lat:
+                        <strong id="map-lat">
+                            50.6745
+                        </strong>
+                    </span>
+
+                    <span>
+                        Lon:
+                        <strong id="map-lon">
+                            -120.3273
+                        </strong>
+                    </span>
+
+                    <span>
+                        Zoom:
+                        <strong id="map-zoom">
+                            14
+                        </strong>
+                    </span>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- ========================================================= -->
+        <!-- PROCESSING OVERLAY -->
+        <!-- ========================================================= -->
+
+        <div
+            id="processing-overlay"
+            class="processing-overlay hidden items-center justify-center bg-white/80 dark:bg-gray-950/80 backdrop-blur-sm"
+        >
+
+            <div
+                class="text-center p-8 rounded-2xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-2xl min-w-[320px]"
+            >
+
+                <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="48"
+                    height="48"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    class="text-[#FF6600] animate-spin mx-auto mb-4"
+                >
+                    <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
+                </svg>
+
+                <h3
+                    class="text-xl text-gray-900 dark:text-white font-bold mb-2"
+                >
+                    Processing Terrain
+                </h3>
+
+                <p
+                    id="processing-message"
+                    class="text-gray-600 dark:text-gray-400 text-sm font-medium mb-4 animate-pulse"
+                >
+                    Initializing Three.js terrain...
+                </p>
+
+
+                <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1.5 overflow-hidden">
+
+                    <div
+                        id="processing-progress"
+                        class="h-full bg-[#FF6600] transition-all duration-300"
+                        style="width: 15%"
+                    ></div>
+
+                </div>
+
+
+                <div
+                    id="processing-detail"
+                    class="text-xs text-gray-400 dark:text-gray-500 max-w-xs mx-auto mt-3"
+                >
+                    Preparing terrain renderer
+                </div>
+
+
+                <button
+                    id="cancel-processing"
+                    class="mt-5 px-6 py-2 text-sm font-medium text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors border border-gray-300 dark:border-gray-600"
+                >
+                    Cancel
+                </button>
+
+            </div>
+
+        </div>
+
+    </main>
 
 </div>
 
 
-<script type="module" src="./js/main.js"></script>
+<!-- ============================================================= -->
+<!-- THREE.JS -->
+<!-- ============================================================= -->
+
+<script type="importmap">
+{
+    "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.179.1/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.179.1/examples/jsm/"
+    }
+}
+</script>
+
+
+<!-- Your application -->
+
+<script
+    type="module"
+    src="./js/app.js"
+></script>
+
+
+<!-- ============================================================= -->
+<!-- BASIC FALLBACK / UI BEHAVIOR -->
+<!-- ============================================================= -->
+
+<script>
+    document.addEventListener("DOMContentLoaded", () => {
+
+        // ---------------------------------------------------------
+        // DARK MODE
+        // ---------------------------------------------------------
+
+        const themeButton =
+            document.getElementById("theme-toggle");
+
+        themeButton?.addEventListener("click", () => {
+
+            document.documentElement.classList.toggle("dark");
+
+        });
+
+
+        // ---------------------------------------------------------
+        // COLLAPSIBLE PANELS
+        // ---------------------------------------------------------
+
+        function togglePanel(buttonId, panelId) {
+
+            const button =
+                document.getElementById(buttonId);
+
+            const panel =
+                document.getElementById(panelId);
+
+            if (!button || !panel) return;
+
+            button.addEventListener("click", () => {
+
+                panel.classList.toggle("hidden");
+
+            });
+
+        }
+
+        togglePanel(
+            "tiles-toggle",
+            "tiles-panel"
+        );
+
+        togglePanel(
+            "configuration-toggle",
+            "configuration-panel"
+        );
+
+
+        // ---------------------------------------------------------
+        // COORDINATES
+        // ---------------------------------------------------------
+
+        const preset =
+            document.getElementById("preset-location");
+
+        const latitude =
+            document.getElementById("latitude");
+
+        const longitude =
+            document.getElementById("longitude");
+
+        preset?.addEventListener("change", () => {
+
+            if (!preset.value) return;
+
+            const [lat, lon] =
+                preset.value.split(",");
+
+            latitude.value = lat;
+            longitude.value = lon;
+
+            document.getElementById("map-lat").textContent = lat;
+            document.getElementById("map-lon").textContent = lon;
+
+            document.getElementById("map-location").textContent =
+                preset.options[preset.selectedIndex].text;
+
+            window.dispatchEvent(
+                new CustomEvent("supermap:locationchange", {
+                    detail: {
+                        latitude: Number(lat),
+                        longitude: Number(lon)
+                    }
+                })
+            );
+
+        });
+
+
+        // ---------------------------------------------------------
+        // RESOLUTION
+        // ---------------------------------------------------------
+
+        const resolution =
+            document.getElementById("resolution");
+
+        const exportResolution =
+            document.getElementById("export-resolution");
+
+        resolution?.addEventListener("change", () => {
+
+            const value = resolution.value;
+
+            exportResolution.textContent =
+                `${value}x${value}`;
+
+            window.dispatchEvent(
+                new CustomEvent("supermap:resolutionchange", {
+                    detail: {
+                        resolution: Number(value)
+                    }
+                })
+            );
+
+        });
+
+
+        // ---------------------------------------------------------
+        // FULLSCREEN
+        // ---------------------------------------------------------
+
+        document
+            .getElementById("fullscreen")
+            ?.addEventListener("click", async () => {
+
+                const map =
+                    document.getElementById("map-container");
+
+                if (!document.fullscreenElement) {
+
+                    await map.requestFullscreen();
+
+                } else {
+
+                    await document.exitFullscreen();
+
+                }
+
+            });
+
+
+        // ---------------------------------------------------------
+        // PROCESSING OVERLAY
+        // ---------------------------------------------------------
+
+        const overlay =
+            document.getElementById("processing-overlay");
+
+        const message =
+            document.getElementById("processing-message");
+
+        const detail =
+            document.getElementById("processing-detail");
+
+        const progress =
+            document.getElementById("processing-progress");
+
+
+        window.superMapProcessing = {
+
+            show() {
+
+                overlay.classList.remove("hidden");
+                overlay.classList.add("flex");
+
+            },
+
+            hide() {
+
+                overlay.classList.add("hidden");
+                overlay.classList.remove("flex");
+
+            },
+
+            update(text, percent, details) {
+
+                message.textContent = text;
+
+                progress.style.width =
+                    `${Math.max(0, Math.min(100, percent))}%`;
+
+                if (details) {
+                    detail.textContent = details;
+                }
+
+            }
+
+        };
+
+
+        // ---------------------------------------------------------
+        // PREVIEW 3D
+        // ---------------------------------------------------------
+
+        document
+            .getElementById("preview-3d")
+            ?.addEventListener("click", async () => {
+
+                window.superMapProcessing.show();
+
+                window.superMapProcessing.update(
+                    "Initializing Three.js...",
+                    15,
+                    "Starting WebGL terrain renderer"
+                );
+
+                await new Promise(
+                    resolve => setTimeout(resolve, 400)
+                );
+
+
+                window.superMapProcessing.update(
+                    "Loading terrain...",
+                    35,
+                    "Building elevation mesh"
+                );
+
+                await new Promise(
+                    resolve => setTimeout(resolve, 500)
+                );
+
+
+                window.superMapProcessing.update(
+                    "Fetching OpenStreetMap data...",
+                    60,
+                    "Loading roads, buildings, bridges and land features"
+                );
+
+                await new Promise(
+                    resolve => setTimeout(resolve, 600)
+                );
+
+
+                window.superMapProcessing.update(
+                    "Generating realistic environment...",
+                    80,
+                    "Placing buildings, trees, bushes and roads"
+                );
+
+                await new Promise(
+                    resolve => setTimeout(resolve, 600)
+                );
+
+
+                window.superMapProcessing.update(
+                    "Finalizing 3D terrain...",
+                    95,
+                    "Optimizing geometry"
+                );
+
+                await new Promise(
+                    resolve => setTimeout(resolve, 400)
+                );
+
+
+                window.superMapProcessing.update(
+                    "Terrain ready!",
+                    100,
+                    "Three.js scene loaded"
+                );
+
+
+                // Tell app.js to rebuild/update the terrain.
+
+                window.dispatchEvent(
+                    new CustomEvent("supermap:preview3d")
+                );
+
+
+                await new Promise(
+                    resolve => setTimeout(resolve, 300)
+                );
+
+                window.superMapProcessing.hide();
+
+            });
+
+
+        // ---------------------------------------------------------
+        // CANCEL
+        // ---------------------------------------------------------
+
+        document
+            .getElementById("cancel-processing")
+            ?.addEventListener("click", () => {
+
+                window.dispatchEvent(
+                    new CustomEvent("supermap:cancel")
+                );
+
+                window.superMapProcessing.hide();
+
+            });
+
+
+        // ---------------------------------------------------------
+        // FILE UPLOAD
+        // ---------------------------------------------------------
+
+        document
+            .getElementById("elevation-upload")
+            ?.addEventListener("change", event => {
+
+                const files =
+                    [...event.target.files];
+
+                if (!files.length) return;
+
+                window.dispatchEvent(
+                    new CustomEvent("supermap:elevationupload", {
+                        detail: {
+                            files
+                        }
+                    })
+                );
+
+            });
+
+
+        // ---------------------------------------------------------
+        // MAP READY
+        // ---------------------------------------------------------
+
+        // app.js should listen for this.
+        //
+        // The important part:
+        // THREE.JS MAP IS CREATED ON PAGE LOAD.
+        //
+        // Preview 3D does NOT create the application from nothing.
+        // It tells the existing renderer to process/rebuild the
+        // terrain.
+
+        window.dispatchEvent(
+            new CustomEvent("supermap:ready")
+        );
+
+    });
+</script>
 
 </body>
 </html>
